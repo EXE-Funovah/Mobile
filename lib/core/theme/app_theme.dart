@@ -97,10 +97,9 @@ class AppTheme {
 
   static ThemeData light() {
     final base = ThemeData.light(useMaterial3: true);
-    final textTheme = GoogleFonts.montserratTextTheme(base.textTheme).apply(
-      bodyColor: AppColors.ink,
-      displayColor: AppColors.ink,
-    );
+    final textTheme = GoogleFonts.montserratTextTheme(
+      base.textTheme,
+    ).apply(bodyColor: AppColors.ink, displayColor: AppColors.ink);
 
     return base.copyWith(
       colorScheme: ColorScheme.fromSeed(
@@ -125,8 +124,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: const Color(0xFFF8FBFE),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 16,
+        ),
         hintStyle: const TextStyle(color: AppColors.inkMuted),
         labelStyle: const TextStyle(
           color: AppColors.inkSecondary,

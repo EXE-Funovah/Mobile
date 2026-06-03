@@ -12,14 +12,16 @@ class DioClient {
   late final Dio dio = _build();
 
   Dio _build() {
-    final dio = Dio(BaseOptions(
-      baseUrl: ApiConstants.baseUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 20),
-      headers: {'Content-Type': 'application/json'},
-      // Không throw exception khi status >=400; mình tự xử lý
-      validateStatus: (status) => status != null && status < 500,
-    ));
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: ApiConstants.baseUrl,
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 20),
+        headers: {'Content-Type': 'application/json'},
+        // Không throw exception khi status >=400; mình tự xử lý
+        validateStatus: (status) => status != null && status < 500,
+      ),
+    );
 
     // Trên dev, chấp nhận cert tự ký của .NET (https://localhost:7108)
     // CHỈ dùng trong debug, KHÔNG dùng cho release.
@@ -33,11 +35,13 @@ class DioClient {
     }
 
     dio.interceptors.add(_AuthInterceptor());
-    dio.interceptors.add(LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-      logPrint: (obj) => debugPrint('[DIO] $obj'),
-    ));
+    dio.interceptors.add(
+      LogInterceptor(
+        requestBody: true,
+        responseBody: true,
+        logPrint: (obj) => debugPrint('[DIO] $obj'),
+      ),
+    );
 
     return dio;
   }

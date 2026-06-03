@@ -34,6 +34,9 @@ dependencies:
   # File picker (document upload)
   file_picker: ^8.1.2
 
+  # Open external URLs (S3 presigned for document preview)
+  url_launcher: ^6.3.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

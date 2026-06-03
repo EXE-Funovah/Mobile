@@ -22,8 +22,9 @@ class _ChatModeViewState extends State<ChatModeView> {
   bool _typing = false;
   final List<_Msg> _messages = [
     _Msg(
-        'Chào bạn! 🐾 Tôi là Mascot AI. Bạn cần giúp gì với bài giảng hôm nay?',
-        false),
+      'Chào bạn! 🐾 Tôi là Mascot AI. Bạn cần giúp gì với bài giảng hôm nay?',
+      false,
+    ),
   ];
 
   void _send([String? quick]) {
@@ -39,10 +40,12 @@ class _ChatModeViewState extends State<ChatModeView> {
       if (!mounted) return;
       setState(() {
         _typing = false;
-        _messages.add(_Msg(
-          '(Sẽ trả lời thật khi nối với mascotChatService trên backend)',
-          false,
-        ));
+        _messages.add(
+          _Msg(
+            '(Sẽ trả lời thật khi nối với mascotChatService trên backend)',
+            false,
+          ),
+        );
       });
       _scrollToBottom();
     });
@@ -86,56 +89,65 @@ class _ChatModeViewState extends State<ChatModeView> {
             ),
             child: SafeArea(
               top: false,
-              child: Row(children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: TextField(
-                      controller: _ctl,
-                      onSubmitted: (_) => _send(),
-                      maxLines: 5,
-                      minLines: 1,
-                      decoration: const InputDecoration(
-                        hintText: 'Nhập tin nhắn…',
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 14),
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        filled: false,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: TextField(
+                        controller: _ctl,
+                        onSubmitted: (_) => _send(),
+                        maxLines: 5,
+                        minLines: 1,
+                        decoration: const InputDecoration(
+                          hintText: 'Nhập tin nhắn…',
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 14,
+                          ),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          filled: false,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: _send,
-                  child: Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [
-                        AppColors.accentPink,
-                        AppColors.accentOrange,
-                      ]),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.accentPink.withValues(alpha: 0.4),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _send,
+                    child: Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            AppColors.accentPink,
+                            AppColors.accentOrange,
+                          ],
                         ),
-                      ],
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.accentPink.withValues(alpha: 0.4),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
-                    child: const Icon(Icons.send_rounded,
-                        color: Colors.white, size: 20),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ),
           ),
         ],
@@ -148,8 +160,9 @@ class _ChatModeViewState extends State<ChatModeView> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isUser) ...[
@@ -158,15 +171,15 @@ class _ChatModeViewState extends State<ChatModeView> {
           ],
           Flexible(
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               constraints: BoxConstraints(
                 maxWidth: MediaQuery.of(context).size.width * 0.72,
               ),
               decoration: BoxDecoration(
                 gradient: isUser
                     ? const LinearGradient(
-                        colors: [AppColors.brandNavy, AppColors.brandBlue])
+                        colors: [AppColors.brandNavy, AppColors.brandBlue],
+                      )
                     : null,
                 color: isUser ? null : Colors.white,
                 borderRadius: BorderRadius.only(
@@ -211,7 +224,9 @@ class _ChatModeViewState extends State<ChatModeView> {
                 onTap: () => _send(s.$2),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
@@ -248,46 +263,49 @@ class _TypingBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(children: [
-        const MascotAvatar(size: 32, bounce: false),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(18),
-              topRight: Radius.circular(18),
-              bottomLeft: Radius.circular(4),
-              bottomRight: Radius.circular(18),
+      child: Row(
+        children: [
+          const MascotAvatar(size: 32, bounce: false),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(18),
+                topRight: Radius.circular(18),
+                bottomLeft: Radius.circular(4),
+                bottomRight: Radius.circular(18),
+              ),
+              border: Border.all(color: AppColors.border),
             ),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(3, (i) {
-              return Container(
-                margin: EdgeInsets.only(right: i < 2 ? 4 : 0),
-                width: 7,
-                height: 7,
-                decoration: const BoxDecoration(
-                  color: AppColors.inkMuted,
-                  shape: BoxShape.circle,
-                ),
-              )
-                  .animate(onPlay: (c) => c.repeat())
-                  .moveY(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(3, (i) {
+                return Container(
+                      margin: EdgeInsets.only(right: i < 2 ? 4 : 0),
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: AppColors.inkMuted,
+                        shape: BoxShape.circle,
+                      ),
+                    )
+                    .animate(onPlay: (c) => c.repeat())
+                    .moveY(
                       duration: 600.ms,
                       delay: (i * 150).ms,
                       begin: 0,
                       end: -4,
-                      curve: Curves.easeInOut)
-                  .then()
-                  .moveY(begin: -4, end: 0, duration: 600.ms);
-            }),
+                      curve: Curves.easeInOut,
+                    )
+                    .then()
+                    .moveY(begin: -4, end: 0, duration: 600.ms);
+              }),
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }

@@ -11,6 +11,7 @@ class ApiConstants {
   /// - Web (Chrome):      'https://localhost:7108'
   /// - Thiết bị thật:     'https://192.168.x.x:7108' (IP LAN máy host)
   static const String baseUrl = 'https://api.mascoteach.com';
+  static const String aiBaseUrl = 'https://ai.mascoteach.com:8443';
 
   // ============ Auth ============
   static const String authLogin = '/api/Auth/login';

@@ -23,8 +23,9 @@ class _MascotChatPageState extends State<MascotChatPage> {
   bool _typing = false;
   final List<_Msg> _messages = [
     _Msg(
-        'Xin chào! 🐾 Tôi là Mascot AI, trợ lý dạy học của bạn. Bạn cần giúp gì hôm nay?',
-        false),
+      'Xin chào! 🐾 Tôi là Mascot AI, trợ lý dạy học của bạn. Bạn cần giúp gì hôm nay?',
+      false,
+    ),
   ];
 
   void _send([String? quick]) {
@@ -42,10 +43,12 @@ class _MascotChatPageState extends State<MascotChatPage> {
       if (!mounted) return;
       setState(() {
         _typing = false;
-        _messages.add(_Msg(
-          '(Mascot AI sẽ trả lời thật khi nối với mascotChatService trên backend)',
-          false,
-        ));
+        _messages.add(
+          _Msg(
+            '(Mascot AI sẽ trả lời thật khi nối với mascotChatService trên backend)',
+            false,
+          ),
+        );
       });
       _scrollToBottom();
     });
@@ -76,43 +79,55 @@ class _MascotChatPageState extends State<MascotChatPage> {
               color: Colors.white,
               boxShadow: AppShadows.soft,
             ),
-            child: Row(children: [
-              Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [
-                    AppColors.accentPink,
-                    AppColors.accentOrange,
-                  ]),
-                  shape: BoxShape.circle,
-                ),
-                child: const MascotAvatar(size: 44, bgColor: Colors.white),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Mascot AI',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 16)),
-                    Row(
-                      children: [
-                        _Dot(),
-                        SizedBox(width: 4),
-                        Text('Online • Sẵn sàng trợ giúp',
-                            style: TextStyle(
-                                color: AppColors.inkMuted, fontSize: 12)),
-                      ],
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.accentPink, AppColors.accentOrange],
                     ),
-                  ],
+                    shape: BoxShape.circle,
+                  ),
+                  child: const MascotAvatar(size: 44, bgColor: Colors.white),
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.more_vert, color: AppColors.inkSecondary),
-                onPressed: () {},
-              ),
-            ]),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Mascot AI',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          _Dot(),
+                          SizedBox(width: 4),
+                          Text(
+                            'Online • Sẵn sàng trợ giúp',
+                            style: TextStyle(
+                              color: AppColors.inkMuted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.more_vert,
+                    color: AppColors.inkSecondary,
+                  ),
+                  onPressed: () {},
+                ),
+              ],
+            ),
           ),
 
           // Messages
@@ -140,68 +155,80 @@ class _MascotChatPageState extends State<MascotChatPage> {
             ),
             child: SafeArea(
               top: false,
-              child: Row(children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.attach_file,
-                        color: AppColors.inkSecondary, size: 22),
-                    onPressed: () {},
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Container(
+              child: Row(
+                children: [
+                  Container(
                     decoration: BoxDecoration(
                       color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(24),
+                      shape: BoxShape.circle,
                     ),
-                    child: TextField(
-                      controller: _ctl,
-                      onSubmitted: (_) => _send(),
-                      maxLines: 5,
-                      minLines: 1,
-                      decoration: const InputDecoration(
-                        hintText: 'Hỏi Mascot bất cứ điều gì...',
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 14),
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        filled: false,
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.attach_file,
+                        color: AppColors.inkSecondary,
+                        size: 22,
+                      ),
+                      onPressed: () {},
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: TextField(
+                        controller: _ctl,
+                        onSubmitted: (_) => _send(),
+                        maxLines: 5,
+                        minLines: 1,
+                        decoration: const InputDecoration(
+                          hintText: 'Hỏi Mascot bất cứ điều gì...',
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 14,
+                          ),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          filled: false,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: _send,
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [
-                        AppColors.accentPink,
-                        AppColors.accentOrange,
-                      ]),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.accentPink.withValues(alpha: 0.4),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _send,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            AppColors.accentPink,
+                            AppColors.accentOrange,
+                          ],
                         ),
-                      ],
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.accentPink.withValues(alpha: 0.4),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
-                    child: const Icon(Icons.send_rounded,
-                        color: Colors.white, size: 20),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ),
           ),
         ],
@@ -214,8 +241,9 @@ class _MascotChatPageState extends State<MascotChatPage> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isUser) ...[
@@ -224,8 +252,7 @@ class _MascotChatPageState extends State<MascotChatPage> {
           ],
           Flexible(
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               constraints: BoxConstraints(
                 maxWidth: MediaQuery.of(context).size.width * 0.72,
               ),
@@ -243,8 +270,7 @@ class _MascotChatPageState extends State<MascotChatPage> {
                   bottomRight: Radius.circular(isUser ? 4 : 18),
                 ),
                 boxShadow: isUser ? null : AppShadows.soft,
-                border:
-                    isUser ? null : Border.all(color: AppColors.border),
+                border: isUser ? null : Border.all(color: AppColors.border),
               ),
               child: Text(
                 m.text,
@@ -280,7 +306,9 @@ class _MascotChatPageState extends State<MascotChatPage> {
                 onTap: () => _send(s.$2),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
@@ -294,9 +322,10 @@ class _MascotChatPageState extends State<MascotChatPage> {
                       Text(
                         s.$2,
                         style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: AppColors.inkSecondary),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: AppColors.inkSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -315,16 +344,15 @@ class _Dot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 7,
-      height: 7,
-      decoration: const BoxDecoration(
-        color: AppColors.accentEmerald,
-        shape: BoxShape.circle,
-      ),
-    ).animate(onPlay: (c) => c.repeat(reverse: true)).fadeOut(
-          duration: 1.2.seconds,
-          curve: Curves.easeInOut,
-        );
+          width: 7,
+          height: 7,
+          decoration: const BoxDecoration(
+            color: AppColors.accentEmerald,
+            shape: BoxShape.circle,
+          ),
+        )
+        .animate(onPlay: (c) => c.repeat(reverse: true))
+        .fadeOut(duration: 1.2.seconds, curve: Curves.easeInOut);
   }
 }
 
@@ -356,14 +384,14 @@ class _TypingBubble extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: List.generate(3, (i) {
                 return Container(
-                  margin: EdgeInsets.only(right: i < 2 ? 4 : 0),
-                  width: 7,
-                  height: 7,
-                  decoration: const BoxDecoration(
-                    color: AppColors.inkMuted,
-                    shape: BoxShape.circle,
-                  ),
-                )
+                      margin: EdgeInsets.only(right: i < 2 ? 4 : 0),
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: AppColors.inkMuted,
+                        shape: BoxShape.circle,
+                      ),
+                    )
                     .animate(onPlay: (c) => c.repeat())
                     .moveY(
                       duration: 600.ms,

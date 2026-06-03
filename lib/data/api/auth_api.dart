@@ -88,7 +88,8 @@ class AuthApi {
     final d = res.data;
     String msg = 'Lỗi ${res.statusCode}';
     if (d is Map) {
-      msg = d['message']?.toString() ??
+      msg =
+          d['message']?.toString() ??
           d['Message']?.toString() ??
           d['error']?.toString() ??
           msg;

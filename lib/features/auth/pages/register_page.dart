@@ -32,7 +32,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final ok = await ref.read(authProvider.notifier).register(
+    final ok = await ref
+        .read(authProvider.notifier)
+        .register(
           fullName: _name.text.trim(),
           email: _email.text.trim(),
           password: _pass.text,
@@ -46,7 +48,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           content: Text(err),
           backgroundColor: AppColors.danger,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     }
@@ -69,125 +73,142 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
           child: Form(
             key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Tạo tài khoản',
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Tham gia cộng đồng Mascoteach ngay hôm nay',
-                  style: TextStyle(color: AppColors.inkSecondary),
-                ),
-                const SizedBox(height: 24),
-                GoogleButton(
-                  label: 'Đăng ký với Google',
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('🚧 Đăng ký Google sẽ sớm có'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-                const OrDivider(label: 'HOẶC ĐIỀN THÔNG TIN'),
-                const SizedBox(height: 16),
-                _RoleSelector(
-                  selected: _role,
-                  onChanged: (v) => setState(() => _role = v),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _name,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Họ và tên',
-                    hintText: 'Nguyễn Văn A',
-                    prefixIcon: Icon(Icons.person_outline,
-                        color: AppColors.inkMuted),
-                  ),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Nhập họ tên' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _email,
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    hintText: 'ten@example.com',
-                    prefixIcon:
-                        Icon(Icons.mail_outline, color: AppColors.inkMuted),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Nhập email';
-                    if (!v.contains('@')) return 'Email không hợp lệ';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _pass,
-                  obscureText: _obscure,
-                  decoration: InputDecoration(
-                    labelText: 'Mật khẩu',
-                    hintText: 'Tối thiểu 6 ký tự',
-                    prefixIcon:
-                        const Icon(Icons.lock_outline, color: AppColors.inkMuted),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscure
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                        color: AppColors.inkMuted,
-                      ),
-                      onPressed: () => setState(() => _obscure = !_obscure),
-                    ),
-                  ),
-                  validator: (v) =>
-                      (v == null || v.length < 6) ? 'Tối thiểu 6 ký tự' : null,
-                ),
-                const SizedBox(height: 24),
-                GradientButton(
-                  label: 'Tạo tài khoản',
-                  loading: loading,
-                  onPressed: _submit,
-                ),
-                const SizedBox(height: 16),
-                Center(
-                  child: Text.rich(
-                    TextSpan(
-                      style: const TextStyle(
-                          color: AppColors.inkMuted, fontSize: 12),
+            child:
+                Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const TextSpan(text: 'Bằng cách đăng ký, bạn đồng ý với '),
-                        TextSpan(
-                          text: 'Điều khoản',
+                        const Text(
+                          'Tạo tài khoản',
                           style: TextStyle(
-                            color: AppColors.brandBlue.withValues(alpha: 0.9),
-                            fontWeight: FontWeight.w600,
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
                           ),
                         ),
-                        const TextSpan(text: ' của Mascoteach'),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Tham gia cộng đồng Mascoteach ngay hôm nay',
+                          style: TextStyle(color: AppColors.inkSecondary),
+                        ),
+                        const SizedBox(height: 24),
+                        GoogleButton(
+                          label: 'Đăng ký với Google',
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('🚧 Đăng ký Google sẽ sớm có'),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        const OrDivider(label: 'HOẶC ĐIỀN THÔNG TIN'),
+                        const SizedBox(height: 16),
+                        _RoleSelector(
+                          selected: _role,
+                          onChanged: (v) => setState(() => _role = v),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _name,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            labelText: 'Họ và tên',
+                            hintText: 'Nguyễn Văn A',
+                            prefixIcon: Icon(
+                              Icons.person_outline,
+                              color: AppColors.inkMuted,
+                            ),
+                          ),
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'Nhập họ tên'
+                              : null,
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _email,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            labelText: 'Email',
+                            hintText: 'ten@example.com',
+                            prefixIcon: Icon(
+                              Icons.mail_outline,
+                              color: AppColors.inkMuted,
+                            ),
+                          ),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty)
+                              return 'Nhập email';
+                            if (!v.contains('@')) return 'Email không hợp lệ';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _pass,
+                          obscureText: _obscure,
+                          decoration: InputDecoration(
+                            labelText: 'Mật khẩu',
+                            hintText: 'Tối thiểu 6 ký tự',
+                            prefixIcon: const Icon(
+                              Icons.lock_outline,
+                              color: AppColors.inkMuted,
+                            ),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscure
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                                color: AppColors.inkMuted,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _obscure = !_obscure),
+                            ),
+                          ),
+                          validator: (v) => (v == null || v.length < 6)
+                              ? 'Tối thiểu 6 ký tự'
+                              : null,
+                        ),
+                        const SizedBox(height: 24),
+                        GradientButton(
+                          label: 'Tạo tài khoản',
+                          loading: loading,
+                          onPressed: _submit,
+                        ),
+                        const SizedBox(height: 16),
+                        Center(
+                          child: Text.rich(
+                            TextSpan(
+                              style: const TextStyle(
+                                color: AppColors.inkMuted,
+                                fontSize: 12,
+                              ),
+                              children: [
+                                const TextSpan(
+                                  text: 'Bằng cách đăng ký, bạn đồng ý với ',
+                                ),
+                                TextSpan(
+                                  text: 'Điều khoản',
+                                  style: TextStyle(
+                                    color: AppColors.brandBlue.withValues(
+                                      alpha: 0.9,
+                                    ),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const TextSpan(text: ' của Mascoteach'),
+                              ],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
                       ],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
-            )
-                .animate()
-                .fadeIn(duration: 400.ms)
-                .moveY(begin: 16, end: 0, curve: Curves.easeOut),
+                    )
+                    .animate()
+                    .fadeIn(duration: 400.ms)
+                    .moveY(begin: 16, end: 0, curve: Curves.easeOut),
           ),
         ),
       ),
@@ -205,7 +226,12 @@ class _RoleSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final roles = const [
       ('Student', 'Học sinh', Icons.school, AppColors.brandBlue),
-      ('Teacher', 'Giáo viên', Icons.cast_for_education, AppColors.accentOrange),
+      (
+        'Teacher',
+        'Giáo viên',
+        Icons.cast_for_education,
+        AppColors.accentOrange,
+      ),
       ('Parent', 'Phụ huynh', Icons.family_restroom, AppColors.accentEmerald),
     ];
 
@@ -246,17 +272,20 @@ class _RoleSelector extends StatelessWidget {
                     ),
                     child: Column(
                       children: [
-                        Icon(r.$3,
-                            color: isSelected ? r.$4 : AppColors.inkMuted,
-                            size: 26),
+                        Icon(
+                          r.$3,
+                          color: isSelected ? r.$4 : AppColors.inkMuted,
+                          size: 26,
+                        ),
                         const SizedBox(height: 6),
                         Text(
                           r.$2,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color:
-                                isSelected ? AppColors.ink : AppColors.inkMuted,
+                            color: isSelected
+                                ? AppColors.ink
+                                : AppColors.inkMuted,
                           ),
                         ),
                       ],

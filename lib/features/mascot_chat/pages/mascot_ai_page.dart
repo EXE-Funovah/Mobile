@@ -111,44 +111,42 @@ class _ModeToggle extends StatelessWidget {
     final activeColor = isDark ? Colors.white : AppColors.brandBlue;
     final inactiveColor = isDark ? Colors.white70 : AppColors.inkMuted;
     return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: selected
-              ? (isDark ? Colors.white : AppColors.brandBlue)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 16,
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
               color: selected
-                  ? (isDark ? AppColors.brandNavy : Colors.white)
-                  : (selected ? activeColor : inactiveColor),
+                  ? (isDark ? Colors.white : AppColors.brandBlue)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(24),
             ),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: selected
-                    ? (isDark ? AppColors.brandNavy : Colors.white)
-                    : inactiveColor,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 16,
+                  color: selected
+                      ? (isDark ? AppColors.brandNavy : Colors.white)
+                      : (selected ? activeColor : inactiveColor),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: selected
+                        ? (isDark ? AppColors.brandNavy : Colors.white)
+                        : inactiveColor,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-    ).animate(target: selected ? 1 : 0).scaleXY(
-          duration: 180.ms,
-          begin: 1,
-          end: 1.03,
-        );
+          ),
+        )
+        .animate(target: selected ? 1 : 0)
+        .scaleXY(duration: 180.ms, begin: 1, end: 1.03);
   }
 }

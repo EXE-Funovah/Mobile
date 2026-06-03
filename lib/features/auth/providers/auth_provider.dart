@@ -45,16 +45,32 @@ class AuthController extends StateNotifier<AuthState> {
 
   Future<void> _bootstrap() async {
     final token = await TokenStorage.instance.getToken();
+    final name = await TokenStorage.instance.getDisplayName();
+    final roleStr = await TokenStorage.instance.getRole();
+
     if (token != null && token.isNotEmpty) {
-      state = state.copyWith(token: token);
+      state = state.copyWith(
+        token: token,
+        displayName: name,
+        role: roleStr != null ? roleFromString(roleStr) : UserRole.unknown,
+      );
     }
   }
 
   Future<bool> login(String email, String password) async {
     state = state.copyWith(loading: true, clearError: true);
     try {
-      final res = await AuthApi.instance.login(email: email, password: password);
+      final res = await AuthApi.instance.login(
+        email: email,
+        password: password,
+      );
       await TokenStorage.instance.setToken(res.token);
+      if (res.fullName != null) {
+        await TokenStorage.instance.setDisplayName(res.fullName!);
+      }
+      if (res.role != null) {
+        await TokenStorage.instance.setRole(res.role!);
+      }
       state = AuthState(
         token: res.token,
         role: roleFromString(res.role),
@@ -100,5 +116,6 @@ class AuthController extends StateNotifier<AuthState> {
   }
 }
 
-final authProvider =
-    StateNotifierProvider<AuthController, AuthState>((ref) => AuthController());
+final authProvider = StateNotifierProvider<AuthController, AuthState>(
+  (ref) => AuthController(),
+);

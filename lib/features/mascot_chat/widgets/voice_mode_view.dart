@@ -77,10 +77,7 @@ class _VoiceModeViewState extends State<VoiceModeView> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            AppColors.brandNavy,
-            Color(0xFF0E2447),
-          ],
+          colors: [AppColors.brandNavy, Color(0xFF0E2447)],
         ),
       ),
       child: Stack(
@@ -94,9 +91,7 @@ class _VoiceModeViewState extends State<VoiceModeView> {
                 const SizedBox(height: 24),
                 // Mascot ở giữa với hiệu ứng theo state
                 Expanded(
-                  child: Center(
-                    child: _MascotOrb(state: _state),
-                  ),
+                  child: Center(child: _MascotOrb(state: _state)),
                 ),
                 // Transcript
                 _TranscriptPanel(
@@ -174,18 +169,18 @@ class _MascotOrb extends StatelessWidget {
 
           // Glow orb
           Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  _ringColor(state).withValues(alpha: 0.6),
-                  _ringColor(state).withValues(alpha: 0.0),
-                ],
-              ),
-            ),
-          )
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      _ringColor(state).withValues(alpha: 0.6),
+                      _ringColor(state).withValues(alpha: 0.0),
+                    ],
+                  ),
+                ),
+              )
               .animate(onPlay: (c) => c.repeat(reverse: true))
               .scale(
                 duration: 1800.ms,
@@ -248,13 +243,13 @@ class _PulseRing extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: color.withValues(alpha: 0.5), width: 2),
-      ),
-    )
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: color.withValues(alpha: 0.5), width: 2),
+          ),
+        )
         .animate(onPlay: (c) => c.repeat())
         .scale(
           delay: delay,
@@ -276,8 +271,7 @@ class _MicButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = state != VoiceState.idle;
-    final color =
-        active ? AppColors.accentEmerald : Colors.white;
+    final color = active ? AppColors.accentEmerald : Colors.white;
     final iconColor = active ? Colors.white : AppColors.brandNavy;
 
     return GestureDetector(
@@ -330,8 +324,10 @@ class _SideButton extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Colors.white.withValues(alpha: 0.1),
-            border:
-                Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.2),
+              width: 1,
+            ),
           ),
           child: Icon(icon, color: Colors.white, size: 24),
         ),
@@ -360,8 +356,10 @@ class _TranscriptPanel extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(18),
-        border:
-            Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.12),
+          width: 1,
+        ),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -430,14 +428,14 @@ class _SpeakingDots extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: List.generate(3, (i) {
         return Container(
-          margin: EdgeInsets.only(right: i < 2 ? 3 : 0),
-          width: 4,
-          height: 4,
-          decoration: BoxDecoration(
-            color: AppColors.accentOrange,
-            shape: BoxShape.circle,
-          ),
-        )
+              margin: EdgeInsets.only(right: i < 2 ? 3 : 0),
+              width: 4,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.accentOrange,
+                shape: BoxShape.circle,
+              ),
+            )
             .animate(onPlay: (c) => c.repeat())
             .scale(
               duration: 500.ms,
@@ -468,20 +466,23 @@ class _Sparkle extends StatelessWidget {
     return Positioned(
       left: r.nextDouble() * size.width,
       top: r.nextDouble() * size.height,
-      child: Container(
-        width: 2 + r.nextDouble() * 2,
-        height: 2 + r.nextDouble() * 2,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.3 + r.nextDouble() * 0.3),
-          shape: BoxShape.circle,
-        ),
-      )
-          .animate(onPlay: (c) => c.repeat(reverse: true))
-          .fadeOut(
-            duration: (1500 + r.nextInt(2000)).ms,
-            delay: (r.nextInt(2000)).ms,
-            curve: Curves.easeInOut,
-          ),
+      child:
+          Container(
+                width: 2 + r.nextDouble() * 2,
+                height: 2 + r.nextDouble() * 2,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(
+                    alpha: 0.3 + r.nextDouble() * 0.3,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+              )
+              .animate(onPlay: (c) => c.repeat(reverse: true))
+              .fadeOut(
+                duration: (1500 + r.nextInt(2000)).ms,
+                delay: (r.nextInt(2000)).ms,
+                curve: Curves.easeInOut,
+              ),
     );
   }
 }

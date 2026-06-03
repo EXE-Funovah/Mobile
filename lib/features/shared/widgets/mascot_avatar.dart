@@ -29,21 +29,13 @@ class MascotAvatar extends StatelessWidget {
         boxShadow: showGlow ? AppShadows.glow : null,
       ),
       padding: EdgeInsets.all(size * 0.1),
-      child: Image.asset(
-        'assets/images/mascot-head.png',
-        fit: BoxFit.contain,
-      ),
+      child: Image.asset('assets/images/mascot-head.png', fit: BoxFit.contain),
     );
 
     if (!bounce) return mascot;
 
     return mascot
         .animate(onPlay: (c) => c.repeat(reverse: true))
-        .moveY(
-          duration: 2400.ms,
-          begin: 0,
-          end: -8,
-          curve: Curves.easeInOut,
-        );
+        .moveY(duration: 2400.ms, begin: 0, end: -8, curve: Curves.easeInOut);
   }
 }
