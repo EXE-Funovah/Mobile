@@ -37,12 +37,30 @@ dependencies:
   # Open external URLs (S3 presigned for document preview)
   url_launcher: ^6.3.0
 
+  # Google Sign-In (gửi idToken lên /api/Auth/google-login)
+  google_sign_in: ^6.2.1
+
+  # App version cho trang Cài đặt
+  package_info_plus: ^8.0.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # Generate launcher icon từ mascot-head.png cho mọi mipmap size
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/
+
+# Cấu hình launcher icon (chạy: dart run flutter_launcher_icons)
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/images/mascot-head.png"
+  # Adaptive icon cho Android 8.0+: nền xanh dương + ảnh foreground
+  adaptive_icon_background: "#1B3A6B"
+  adaptive_icon_foreground: "assets/images/mascot-head.png"
+  min_sdk_android: 21

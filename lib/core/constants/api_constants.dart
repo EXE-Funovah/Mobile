@@ -16,6 +16,21 @@ class ApiConstants {
   // ============ Auth ============
   static const String authLogin = '/api/Auth/login';
   static const String authRegister = '/api/Auth/register';
+  static const String authGoogleLogin = '/api/Auth/google-login';
+  static const String authForgotPassword = '/api/Auth/forgot-password';
+  static const String authResetPassword = '/api/Auth/reset-password';
+
+  /// Web OAuth Client ID dùng cho Google Sign-In.
+  ///
+  /// Phải KHỚP với `Google:ClientId` trong `appsettings.json` của Backend
+  /// (BE validate audience của idToken bằng Client ID này).
+  ///
+  /// Lấy ở Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs
+  /// → loại "Web application". KHÔNG dùng Android client ID.
+  ///
+  /// TODO: thay placeholder bằng giá trị thật trước khi build release.
+  static const String googleWebClientId =
+      'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
 
   // ============ User ============
   static const String userMe = '/api/User/me';

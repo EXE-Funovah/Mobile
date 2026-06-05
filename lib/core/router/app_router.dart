@@ -13,6 +13,10 @@ import '../../features/quiz/pages/doc_detail_page.dart';
 import '../../features/quiz/pages/quiz_play_page.dart';
 import '../../features/quiz/pages/quiz_result_page.dart';
 import '../../features/quiz/pages/upload_page.dart';
+import '../../features/student/pages/account_page.dart';
+import '../../features/student/pages/payment_page.dart';
+import '../../features/student/pages/pricing_page.dart';
+import '../../features/student/pages/settings_page.dart';
 import '../../features/student/pages/student_shell.dart';
 
 final onboardedProvider = FutureProvider<bool>((_) async {
@@ -45,6 +49,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
       GoRoute(path: '/register', builder: (_, _) => const RegisterPage()),
       GoRoute(path: '/student', builder: (_, _) => const StudentShell()),
+      GoRoute(path: '/student/account', builder: (_, _) => const AccountPage()),
+      GoRoute(path: '/student/settings', builder: (_, _) => const SettingsPage()),
+      GoRoute(path: '/student/pricing', builder: (_, _) => const PricingPage()),
+      GoRoute(
+        path: '/student/payment',
+        builder: (ctx, st) {
+          final planId = st.uri.queryParameters['plan'] ?? 'monthly';
+          return PaymentPage(planId: planId);
+        },
+      ),
       GoRoute(path: '/student/upload', builder: (_, _) => const UploadPage()),
       GoRoute(
         path: '/student/doc-detail',

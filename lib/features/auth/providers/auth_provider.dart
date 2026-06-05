@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../data/api/auth_api.dart';
 import '../../../data/models/user.dart';
 import '../../../data/storage/token_storage.dart';
@@ -105,7 +107,61 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  /// Đăng nhập bằng Google. Trả về true nếu thành công, false nếu user hủy hoặc lỗi.
+  Future<bool> googleSignIn() async {
+    state = state.copyWith(loading: true, clearError: true);
+    try {
+      // serverClientId = Web Client ID của BE; cần thiết để idToken có audience đúng.
+      final google = GoogleSignIn(
+        scopes: const ['email', 'profile', 'openid'],
+        serverClientId: ApiConstants.googleWebClientId,
+      );
+
+      // Sign out trước để luôn hiện account picker thay vì auto chọn account cũ
+      await google.signOut();
+      final account = await google.signIn();
+      if (account == null) {
+        // user cancel
+        state = state.copyWith(loading: false);
+        return false;
+      }
+
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw Exception(
+          'Không lấy được Google idToken. Kiểm tra cấu hình OAuth Android.',
+        );
+      }
+
+      final res = await AuthApi.instance.googleLogin(idToken: idToken);
+      await TokenStorage.instance.setToken(res.token);
+      if (res.fullName != null) {
+        await TokenStorage.instance.setDisplayName(res.fullName!);
+      }
+      if (res.role != null) {
+        await TokenStorage.instance.setRole(res.role!);
+      }
+      state = AuthState(
+        token: res.token,
+        role: roleFromString(res.role),
+        displayName: res.fullName,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(loading: false, error: _msg(e));
+      return false;
+    }
+  }
+
   Future<void> logout() async {
+    // Sign out khỏi Google luôn để lần sau user có thể chọn account khác
+    try {
+      await GoogleSignIn(serverClientId: ApiConstants.googleWebClientId)
+          .signOut();
+    } catch (_) {
+      // Bỏ qua lỗi nếu Google chưa init
+    }
     await TokenStorage.instance.clear();
     state = const AuthState();
   }

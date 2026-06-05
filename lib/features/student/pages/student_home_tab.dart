@@ -18,7 +18,16 @@ class StudentHomeTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ref.watch(themeProvider);
-    final name = ref.watch(authProvider).displayName ?? 'Minh Anh';
+    final name = ref.watch(authProvider).displayName ?? 'Bạn';
+    // TODO(gamification): thay các giá trị 0 bằng dữ liệu từ /api/UserStats/me
+    // khi backend hoàn tất (xem PROGRESS.md sprint Gamification).
+    const streak = 0;
+    const xp = 0;
+    const goalMinutesDone = 0;
+    const goalMinutesTarget = 25;
+    final goalPct = goalMinutesTarget == 0
+        ? 0.0
+        : (goalMinutesDone / goalMinutesTarget).clamp(0.0, 1.0);
     return ListView(
       padding: const EdgeInsets.fromLTRB(22, 10, 22, 18),
       children: [
@@ -61,7 +70,7 @@ class StudentHomeTab extends ConsumerWidget {
                   Icon(Icons.local_fire_department, size: 17, color: t.accent),
                   const SizedBox(width: 4),
                   Text(
-                    '7',
+                    '$streak',
                     style: TextStyle(
                       color: t.accent,
                       fontWeight: FontWeight.w800,
@@ -257,13 +266,13 @@ class StudentHomeTab extends ConsumerWidget {
                 child: Row(
                   children: [
                     Ring(
-                      pct: 0.72,
+                      pct: goalPct,
                       size: 52,
                       stroke: 6,
                       color: t.primary,
                       track: t.surfaceSunken,
                       child: Text(
-                        '72%',
+                        '${(goalPct * 100).round()}%',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
@@ -285,7 +294,7 @@ class StudentHomeTab extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            '18 / 25 phút',
+                            '$goalMinutesDone / $goalMinutesTarget phút',
                             style: TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w600,
@@ -320,7 +329,7 @@ class StudentHomeTab extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '1.240',
+                            '$xp',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
@@ -346,7 +355,9 @@ class StudentHomeTab extends ConsumerWidget {
           ],
         ).animate().fadeIn(delay: 200.ms, duration: 500.ms),
 
+        const SizedBox(height: 14),
         _buildContinueLearning(context, ref, t),
+        const SizedBox(height: 18),
 
         SectionHead(
           title: 'Tài liệu của bạn',

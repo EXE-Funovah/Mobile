@@ -65,9 +65,9 @@ class _StudentShellState extends ConsumerState<StudentShell> {
               }
             },
           ),
-          // FAB overlay — đẩy lên 28px trên bottom nav
+          // FAB overlay — đẩy lên 8px trên bottom nav (vừa nhô, không che label)
           Positioned(
-            top: -28,
+            top: -8,
             child: VoiceFab(active: _tab == NavTab.voice, onTap: _openVoice),
           ),
         ],

@@ -51,13 +51,26 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
   }
 
-  void _googleSignIn() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🚧 Đăng nhập Google sẽ sớm có mặt'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  Future<void> _googleSignIn() async {
+    final ok = await ref.read(authProvider.notifier).googleSignIn();
+    if (!mounted) return;
+    if (!ok) {
+      final err = ref.read(authProvider).error;
+      if (err != null && err.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(err),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+      // nếu err null nghĩa là user cancel — không show gì
+    }
+    // Khi thành công router refreshListenable sẽ tự redirect
   }
 
   @override

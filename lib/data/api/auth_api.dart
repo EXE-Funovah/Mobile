@@ -40,6 +40,29 @@ class AuthApi {
     );
   }
 
+  /// Đăng nhập bằng Google idToken (đã lấy qua google_sign_in trên client).
+  Future<AuthResult> googleLogin({required String idToken}) async {
+    final res = await _dio.post(
+      ApiConstants.authGoogleLogin,
+      data: {'credential': idToken},
+    );
+
+    if (res.statusCode != null && res.statusCode! >= 400) {
+      throw _extractError(res);
+    }
+
+    final data = res.data;
+    final token = _extractToken(data);
+    if (token == null || token.isEmpty) {
+      throw Exception('Phản hồi không có token');
+    }
+    return AuthResult(
+      token: token,
+      role: _extractField(data, ['role', 'Role']),
+      fullName: _extractField(data, ['fullName', 'FullName', 'name']),
+    );
+  }
+
   Future<void> register({
     required String fullName,
     required String email,
@@ -54,6 +77,17 @@ class AuthApi {
         'password': password,
         'role': role,
       },
+    );
+    if (res.statusCode != null && res.statusCode! >= 400) {
+      throw _extractError(res);
+    }
+  }
+
+  /// Gửi mã reset password tới email user.
+  Future<void> forgotPassword({required String email}) async {
+    final res = await _dio.post(
+      ApiConstants.authForgotPassword,
+      data: {'email': email},
     );
     if (res.statusCode != null && res.statusCode! >= 400) {
       throw _extractError(res);

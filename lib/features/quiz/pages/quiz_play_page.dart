@@ -52,7 +52,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
     } else if (widget.documentId != null) {
       asyncQs = ref.watch(documentQuestionsProvider(widget.documentId!));
     } else {
-      asyncQs = AsyncValue.data(mockQuizQs);
+      asyncQs = const AsyncValue.data(<QuizQ>[]);
     }
 
     return asyncQs.when(

@@ -1,22 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../core/theme/theme_tokens.dart';
+import '../../../data/models/user.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../shared/widgets/themed_card.dart';
 
 class StudentProfileTab extends ConsumerWidget {
   const StudentProfileTab({super.key});
 
+  String _roleLabel(UserRole role) {
+    switch (role) {
+      case UserRole.student:
+        return 'Học sinh';
+      case UserRole.teacher:
+        return 'Giáo viên';
+      case UserRole.parent:
+        return 'Phụ huynh';
+      case UserRole.unknown:
+        return 'Người dùng';
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ref.watch(themeProvider);
     final auth = ref.watch(authProvider);
-    final name = auth.displayName ?? 'Nguyễn Minh Anh';
+    final name = auth.displayName ?? 'Học sinh';
+    final roleLabel = _roleLabel(auth.role);
+    // TODO(gamification): thay 0 bằng UserStats khi BE sẵn sàng.
     final stats = const [
-      (i: Icons.local_fire_department, v: '7', l: 'ngày streak', tint: 1),
-      (i: Icons.gps_fixed, v: '142', l: 'câu đúng', tint: 2),
-      (i: Icons.access_time, v: '24h', l: 'đã học', tint: 0),
+      (i: Icons.local_fire_department, v: '0', l: 'ngày streak', tint: 1),
+      (i: Icons.gps_fixed, v: '0', l: 'câu đúng', tint: 2),
+      (i: Icons.access_time, v: '0h', l: 'đã học', tint: 0),
     ];
 
     return ListView(
@@ -25,57 +42,29 @@ class StudentProfileTab extends ConsumerWidget {
         // Header
         Column(
           children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 92,
-                  height: 92,
-                  decoration: BoxDecoration(
-                    gradient: t.fabGradient,
-                    borderRadius: BorderRadius.circular(28),
-                    boxShadow: [
-                      BoxShadow(
-                        color: t.fabRing,
-                        blurRadius: 24,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
+            Container(
+              width: 92,
+              height: 92,
+              decoration: BoxDecoration(
+                gradient: t.fabGradient,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: t.fabRing,
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
                   ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : 'M',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 36,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                name.isNotEmpty ? name[0].toUpperCase() : 'M',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 36,
+                  fontWeight: FontWeight.w800,
                 ),
-                Positioned(
-                  right: -4,
-                  bottom: -4,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: t.accent,
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: t.appBg, width: 3),
-                    ),
-                    child: const Text(
-                      'Lv.8',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
             const SizedBox(height: 14),
             Text(
@@ -87,7 +76,7 @@ class StudentProfileTab extends ConsumerWidget {
               ),
             ),
             Text(
-              'Lớp 10A2 · THPT Lê Quý Đôn',
+              roleLabel,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -140,7 +129,7 @@ class StudentProfileTab extends ConsumerWidget {
         ),
         const SizedBox(height: 14),
 
-        // XP bar
+        // XP bar — placeholder, sẽ nối /api/UserStats/me
         ThemedCard(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -150,7 +139,7 @@ class StudentProfileTab extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Cấp 8 → 9',
+                    'Cấp 1',
                     style: TextStyle(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w800,
@@ -158,7 +147,7 @@ class StudentProfileTab extends ConsumerWidget {
                     ),
                   ),
                   Text(
-                    '1.240 / 2.000 XP',
+                    '0 / 2.000 XP',
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
@@ -176,7 +165,7 @@ class StudentProfileTab extends ConsumerWidget {
                     children: [
                       Container(color: t.surfaceSunken),
                       FractionallySizedBox(
-                        widthFactor: 0.62,
+                        widthFactor: 0,
                         child: Container(
                           decoration: BoxDecoration(gradient: t.fabGradient),
                         ),
@@ -190,19 +179,37 @@ class StudentProfileTab extends ConsumerWidget {
         ),
         const SizedBox(height: 14),
 
-        // Theme switcher card
+        // Settings card
         ThemedCard(
           child: Column(
             children: [
-              _tile(t, Icons.person_outline, 'Tài khoản', null, () {}),
+              _tile(
+                t,
+                Icons.person_outline,
+                'Tài khoản',
+                null,
+                () => context.push('/student/account'),
+              ),
               Divider(color: t.line, height: 1),
-              _tile(t, Icons.notifications_outlined, 'Thông báo', null, () {}),
+              _tile(
+                t,
+                Icons.notifications_outlined,
+                'Thông báo',
+                'Sắp ra mắt',
+                () {},
+              ),
               Divider(color: t.line, height: 1),
               _tile(t, Icons.language, 'Ngôn ngữ', 'Tiếng Việt', () {}),
               Divider(color: t.line, height: 1),
               _themeRow(context, ref, t),
               Divider(color: t.line, height: 1),
-              _tile(t, Icons.settings_outlined, 'Cài đặt', null, () {}),
+              _tile(
+                t,
+                Icons.settings_outlined,
+                'Cài đặt',
+                null,
+                () => context.push('/student/settings'),
+              ),
             ],
           ),
         ),
