@@ -1,3 +1,7 @@
+import 'package:flutter/foundation.dart';
+
+import 'ai_base_url_resolver.dart';
+
 /// Tập trung các hằng số API.
 class ApiConstants {
   ApiConstants._();
@@ -11,7 +15,22 @@ class ApiConstants {
   /// - Web (Chrome):      'https://localhost:7108'
   /// - Thiết bị thật:     'https://192.168.x.x:7108' (IP LAN máy host)
   static const String baseUrl = 'https://api.mascoteach.com';
-  static const String aiBaseUrl = 'https://ai.mascoteach.com:8443';
+  static const String _aiBaseUrlOverride = String.fromEnvironment(
+    'AI_BASE_URL',
+    defaultValue: '',
+  );
+  static String get aiBaseUrl => resolveAiBaseUrl(
+    overrideBaseUrl: _aiBaseUrlOverride,
+    isDebugMode: kDebugMode,
+    isWebRuntime: kIsWeb,
+  );
+  static const String aiChat = '/api/v1/ai/chat';
+  static const String mascotLiveHealth = '/api/v1/mascot-live/health';
+  static const String mascotLiveSession = '/api/v1/mascot-live/session';
+  static String mascotLiveSessionById(String sessionId) =>
+      '/api/v1/mascot-live/session/$sessionId';
+  static String mascotLiveEndSession(String sessionId) =>
+      '/api/v1/mascot-live/session/$sessionId/end';
 
   // ============ Auth ============
   static const String authLogin = '/api/Auth/login';
