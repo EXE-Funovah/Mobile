@@ -52,13 +52,13 @@ class MascotLiveApi {
 
       return _parseSessionResponse(
         res,
-        defaultError: 'Không tạo được phiên Agora',
+        defaultError: 'Không tạo được phiên thoại của Sumadi',
       );
     } on DioException catch (error) {
       throw Exception(
         formatNetworkError(
           error,
-          fallbackMessage: 'Không tạo được phiên Agora',
+          fallbackMessage: 'Không tạo được phiên thoại của Sumadi',
         ),
       );
     }
@@ -71,13 +71,13 @@ class MascotLiveApi {
       );
       return _parseSessionResponse(
         res,
-        defaultError: 'Không lấy được trạng thái phiên Agora',
+        defaultError: 'Không lấy được trạng thái phiên thoại',
       );
     } on DioException catch (error) {
       throw Exception(
         formatNetworkError(
           error,
-          fallbackMessage: 'Không lấy được trạng thái phiên Agora',
+          fallbackMessage: 'Không lấy được trạng thái phiên thoại',
         ),
       );
     }
@@ -88,12 +88,62 @@ class MascotLiveApi {
       final res = await _client().post(
         ApiConstants.mascotLiveEndSession(sessionId),
       );
-      return _parseSessionResponse(res, defaultError: 'Không đóng được phiên Agora');
+      return _parseSessionResponse(
+        res,
+        defaultError: 'Không đóng được phiên thoại',
+      );
     } on DioException catch (error) {
       throw Exception(
         formatNetworkError(
           error,
-          fallbackMessage: 'Không đóng được phiên Agora',
+          fallbackMessage: 'Không đóng được phiên thoại',
+        ),
+      );
+    }
+  }
+
+  Future<String> exchangeRealtimeSdp({
+    required MascotLiveSession session,
+    required String offerSdp,
+  }) async {
+    try {
+      final dio = Dio(
+        BaseOptions(
+          baseUrl: session.connection.apiBaseUrl,
+          connectTimeout: const Duration(seconds: 20),
+          receiveTimeout: const Duration(seconds: 30),
+          responseType: ResponseType.plain,
+          headers: {
+            'Authorization': 'Bearer ${session.clientSecret.value}',
+            'Content-Type': 'application/sdp',
+          },
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+
+      final res = await dio.post(
+        session.connection.callEndpoint,
+        data: offerSdp,
+      );
+
+      if (res.statusCode == null || res.statusCode! >= 300) {
+        throw Exception(
+          _extractMessage(res.data) ??
+              'Không tạo được kết nối Realtime (${res.statusCode})',
+        );
+      }
+
+      final data = res.data;
+      if (data is String && data.trim().isNotEmpty) {
+        return data;
+      }
+
+      throw Exception('Realtime trả về SDP không hợp lệ');
+    } on DioException catch (error) {
+      throw Exception(
+        formatNetworkError(
+          error,
+          fallbackMessage: 'Không tạo được kết nối Realtime',
         ),
       );
     }
@@ -111,7 +161,9 @@ class MascotLiveApi {
 
       final data = res.data;
       if (res.statusCode == null || res.statusCode! >= 300) {
-        throw Exception(_extractMessage(data) ?? 'AI chat lỗi (${res.statusCode})');
+        throw Exception(
+          _extractMessage(data) ?? 'AI chat lỗi (${res.statusCode})',
+        );
       }
 
       if (data is Map) {
@@ -141,7 +193,9 @@ class MascotLiveApi {
   }) {
     final data = res.data;
     if (res.statusCode == null || res.statusCode! >= 300) {
-      throw Exception(_extractMessage(data) ?? '$defaultError (${res.statusCode})');
+      throw Exception(
+        _extractMessage(data) ?? '$defaultError (${res.statusCode})',
+      );
     }
 
     if (data is Map) {

@@ -1,16 +1,17 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
-import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../core/theme/theme_provider.dart';
 import '../../../core/utils/network_error_formatter.dart';
 import '../../../data/api/mascot_live_api.dart';
 import '../../../data/models/mascot_live_session.dart';
-import '../../../core/theme/theme_provider.dart';
 import '../widgets/voice_message_feed.dart';
 
 class VoiceChatPage extends ConsumerStatefulWidget {
@@ -38,11 +39,14 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
   bool _connected = false;
   bool _remoteJoined = false;
   bool _micEnabled = false;
-  int? _remoteUid;
-  String _statusText = 'Đang chuẩn bị kết nối Agora…';
+  bool _speaking = false;
+  String _statusText = 'Đang chuẩn bị kết nối Sumadi…';
   String? _errorText;
   MascotLiveSession? _session;
-  RtcEngine? _engine;
+  RTCPeerConnection? _peerConnection;
+  RTCDataChannel? _dataChannel;
+  MediaStream? _localStream;
+  MediaStream? _remoteStream;
 
   @override
   void initState() {
@@ -51,22 +55,22 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat();
-    _bootstrapAgora();
+    _bootstrapRealtime();
   }
 
   @override
   void dispose() {
-    unawaited(_teardownAgora());
+    unawaited(_teardownRealtime());
     _ctl.dispose();
     super.dispose();
   }
 
-  Future<void> _bootstrapAgora() async {
+  Future<void> _bootstrapRealtime() async {
     _appendSystemMessage('Đang tạo phiên giọng nói với Sumadi…');
-    await _startAgoraSession();
+    await _startRealtimeSession();
   }
 
-  Future<void> _startAgoraSession() async {
+  Future<void> _startRealtimeSession() async {
     if (_joining || _connected) return;
 
     setState(() {
@@ -78,150 +82,102 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
     try {
       final micPermission = await Permission.microphone.request();
       if (!micPermission.isGranted) {
-        throw Exception('Bạn cần cấp quyền micro để dùng Agora voice.');
+        throw Exception('Bạn cần cấp quyền micro để trò chuyện với Sumadi.');
       }
 
+      try {
+        await Helper.setAndroidAudioConfiguration(
+          AndroidAudioConfiguration.communication,
+        );
+      } catch (_) {}
+
+      try {
+        await Helper.setSpeakerphoneOn(true);
+      } catch (_) {}
+
       if (!mounted) return;
-      setState(() => _statusText = 'Đang tạo phòng Agora…');
+      setState(() => _statusText = 'Đang tạo phiên OpenAI Realtime…');
 
       final session = await MascotLiveApi.instance.createSession(
         displayName: 'Mascoteach learner',
         language: 'vi',
       );
 
-      final engine = createAgoraRtcEngine();
-      await engine.initialize(
-        RtcEngineContext(
-          appId: session.rtc.appId,
-          channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
-        ),
+      final peerConnection = await createPeerConnection({
+        'sdpSemantics': 'unified-plan',
+      });
+
+      final localStream = await navigator.mediaDevices.getUserMedia({
+        'audio': {
+          'echoCancellation': true,
+          'noiseSuppression': true,
+          'autoGainControl': true,
+        },
+        'video': false,
+      });
+
+      for (final track in localStream.getTracks()) {
+        await peerConnection.addTrack(track, localStream);
+      }
+
+      final dataChannel = await peerConnection.createDataChannel(
+        session.connection.dataChannelLabel,
+        RTCDataChannelInit()..ordered = true,
       );
 
-      engine.registerEventHandler(
-        RtcEngineEventHandler(
-          onError: (err, msg) {
-            if (!mounted) return;
-            setState(() {
-              _errorText = 'Agora error $err: $msg';
-              _statusText = 'Agora gặp lỗi';
-            });
-          },
-          onJoinChannelSuccess: (connection, elapsed) {
-            if (!mounted) return;
-            setState(() {
-              _connected = true;
-              _listening = true;
-              _micEnabled = true;
-              _statusText = 'Đã vào kênh Agora • Đang chờ Sumadi';
-            });
-            _appendSystemMessage(
-              'Đã kết nối Agora channel "${session.rtc.channelName}".',
-            );
-          },
-          onUserJoined: (connection, remoteUid, elapsed) {
-            if (!mounted) return;
-            final isAgent = remoteUid.toString() == session.agent.agentRtcUid;
-            setState(() {
-              _remoteUid = remoteUid;
-              _remoteJoined = true;
-              _statusText = isAgent
-                  ? 'Sumadi đã vào phòng Agora'
-                  : 'Có người tham gia kênh Agora';
-            });
-            _appendAssistantMessage(
-              isAgent
-                  ? 'Sumadi đã tham gia phòng thoại. Bạn có thể bắt đầu nói.'
-                  : 'Remote user $remoteUid đã tham gia kênh.',
-            );
-          },
-          onUserOffline: (connection, remoteUid, reason) {
-            if (!mounted) return;
-            setState(() {
-              if (_remoteUid == remoteUid) {
-                _remoteUid = null;
-                _remoteJoined = false;
-              }
-              _statusText = 'Remote user đã rời phòng';
-            });
-            _appendSystemMessage('Remote user $remoteUid đã rời kênh.');
-          },
-          onLeaveChannel: (connection, stats) {
-            if (!mounted) return;
-            setState(() {
-              _connected = false;
-              _listening = false;
-              _micEnabled = false;
-              _remoteJoined = false;
-              _remoteUid = null;
-              _statusText = 'Đã rời phòng Agora';
-            });
-          },
-          onConnectionStateChanged: (connection, state, reason) {
-            if (!mounted) return;
-            if (state == ConnectionStateType.connectionStateConnecting) {
-              setState(() => _statusText = 'Agora đang kết nối…');
-            } else if (state ==
-                ConnectionStateType.connectionStateReconnecting) {
-              setState(() => _statusText = 'Agora đang kết nối lại…');
-            } else if (state ==
-                ConnectionStateType.connectionStateFailed) {
-              setState(() => _statusText = 'Agora kết nối thất bại');
-            }
-          },
-          onTokenPrivilegeWillExpire: (connection, token) {
-            if (!mounted) return;
-            _appendSystemMessage(
-              'Agora token sắp hết hạn. Nếu test lâu, hãy vào lại phòng.',
-            );
-          },
-        ),
+      _wirePeerConnection(
+        session: session,
+        peerConnection: peerConnection,
+        dataChannel: dataChannel,
       );
 
-      await engine.enableAudio();
-      await engine.disableVideo();
-      await engine.setAudioProfile(
-        profile: AudioProfileType.audioProfileDefault,
-        scenario: AudioScenarioType.audioScenarioChatroom,
-      );
-      await engine.setClientRole(
-        role: ClientRoleType.clientRoleBroadcaster,
+      final offer = await peerConnection.createOffer({
+        'offerToReceiveAudio': true,
+        'offerToReceiveVideo': false,
+      });
+
+      await peerConnection.setLocalDescription(offer);
+
+      final answerSdp = await MascotLiveApi.instance.exchangeRealtimeSdp(
+        session: session,
+        offerSdp: offer.sdp ?? '',
       );
 
-      await engine.joinChannel(
-        token: session.rtc.token ?? '',
-        channelId: session.rtc.channelName,
-        uid: session.rtc.uid,
-        options: const ChannelMediaOptions(
-          channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
-          clientRoleType: ClientRoleType.clientRoleBroadcaster,
-          publishMicrophoneTrack: true,
-          publishCameraTrack: false,
-          autoSubscribeAudio: true,
-          autoSubscribeVideo: false,
-        ),
+      await peerConnection.setRemoteDescription(
+        RTCSessionDescription(answerSdp, 'answer'),
       );
 
       if (!mounted) {
-        await engine.leaveChannel();
-        await engine.release();
+        await _disposeRealtimeObjects(
+          peerConnection: peerConnection,
+          dataChannel: dataChannel,
+          localStream: localStream,
+        );
         return;
       }
 
       setState(() {
         _session = session;
-        _engine = engine;
-        _statusText = 'Đang vào kênh Agora…';
+        _peerConnection = peerConnection;
+        _dataChannel = dataChannel;
+        _localStream = localStream;
+        _connected = true;
+        _listening = true;
+        _micEnabled = true;
+        _statusText = 'Đã nối OpenAI Realtime • Sumadi đang nghe';
       });
+      _appendSystemMessage('Đã kết nối giọng nói thời gian thực với Sumadi.');
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _errorText = formatNetworkError(
           error,
-          fallbackMessage: 'Không kết nối được Agora',
+          fallbackMessage: 'Không kết nối được Sumadi',
         );
-        _statusText = 'Không kết nối được Agora';
+        _statusText = 'Không kết nối được Sumadi';
       });
-      _appendSystemMessage(_errorText ?? 'Không kết nối được Agora.');
+      _appendSystemMessage(_errorText ?? 'Không kết nối được Sumadi.');
+      await _teardownRealtime(resetSessionOnly: false);
     } finally {
       if (mounted) {
         setState(() => _joining = false);
@@ -229,21 +185,165 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
     }
   }
 
-  Future<void> _teardownAgora() async {
-    final engine = _engine;
+  void _wirePeerConnection({
+    required MascotLiveSession session,
+    required RTCPeerConnection peerConnection,
+    required RTCDataChannel dataChannel,
+  }) {
+    peerConnection.onTrack = (event) {
+      if (!mounted || event.track.kind != 'audio') return;
+      setState(() {
+        _remoteJoined = true;
+        _speaking = true;
+        _statusText = 'Sumadi đang phản hồi…';
+      });
+      if (event.streams.isNotEmpty) {
+        _remoteStream = event.streams.first;
+      }
+    };
+
+    peerConnection.onConnectionState = (state) {
+      if (!mounted) return;
+      switch (state) {
+        case RTCPeerConnectionState.RTCPeerConnectionStateConnecting:
+          setState(() => _statusText = 'Đang kết nối OpenAI Realtime…');
+          break;
+        case RTCPeerConnectionState.RTCPeerConnectionStateConnected:
+          setState(() {
+            _connected = true;
+            _remoteJoined = true;
+            _statusText = _speaking
+                ? 'Sumadi đang phản hồi…'
+                : (_micEnabled
+                      ? 'Đã nối OpenAI Realtime • Sumadi đang nghe'
+                      : 'Mic đang tắt');
+          });
+          break;
+        case RTCPeerConnectionState.RTCPeerConnectionStateDisconnected:
+          setState(() => _statusText = 'Kết nối Realtime bị gián đoạn');
+          break;
+        case RTCPeerConnectionState.RTCPeerConnectionStateFailed:
+          setState(() => _statusText = 'Kết nối Realtime thất bại');
+          break;
+        case RTCPeerConnectionState.RTCPeerConnectionStateClosed:
+          setState(() => _statusText = 'Đã đóng phiên giọng nói');
+          break;
+        default:
+          break;
+      }
+    };
+
+    dataChannel.onDataChannelState = (state) {
+      if (!mounted) return;
+      if (state == RTCDataChannelState.RTCDataChannelOpen) {
+        _appendSystemMessage('Kênh điều khiển giọng nói đã sẵn sàng.');
+        setState(() {
+          _listening = _micEnabled;
+          _statusText = _speaking
+              ? 'Sumadi đang phản hồi…'
+              : (_micEnabled
+                    ? 'Đã nối OpenAI Realtime • Sumadi đang nghe'
+                    : 'Mic đang tắt');
+        });
+      }
+    };
+
+    dataChannel.onMessage = (message) {
+      if (message.isBinary) return;
+      _handleRealtimeEvent(message.text, session);
+    };
+  }
+
+  void _handleRealtimeEvent(String raw, MascotLiveSession session) {
+    try {
+      final event = jsonDecode(raw);
+      if (event is! Map<String, dynamic>) return;
+
+      final type = event['type']?.toString() ?? '';
+      if (!mounted) return;
+
+      switch (type) {
+        case 'response.created':
+        case 'response.output_item.added':
+          setState(() {
+            _speaking = true;
+            _listening = false;
+            _remoteJoined = true;
+            _statusText = 'Sumadi đang phản hồi…';
+          });
+          break;
+        case 'response.done':
+        case 'response.completed':
+        case 'output_audio_buffer.stopped':
+          setState(() {
+            _speaking = false;
+            _listening = _micEnabled;
+            _statusText = _micEnabled ? 'Sumadi đang nghe' : 'Mic đang tắt';
+          });
+          break;
+        case 'error':
+          final message =
+              (event['error'] is Map
+                      ? (event['error'] as Map)['message']
+                      : null)
+                  ?.toString() ??
+              'OpenAI Realtime gặp lỗi';
+          setState(() {
+            _errorText = message;
+            _statusText = message;
+          });
+          _appendSystemMessage(message);
+          break;
+        case 'response.audio_transcript.done':
+        case 'response.output_text.done':
+          final text =
+              event['text']?.toString().trim() ??
+              (event['transcript']?.toString().trim() ?? '');
+          if (text.isNotEmpty) {
+            _appendAssistantMessage(text);
+          }
+          break;
+        default:
+          break;
+      }
+    } catch (_) {
+      // Ignore unrecognized realtime events.
+    }
+  }
+
+  Future<void> _teardownRealtime({bool resetSessionOnly = true}) async {
+    final peerConnection = _peerConnection;
+    final dataChannel = _dataChannel;
+    final localStream = _localStream;
+    final remoteStream = _remoteStream;
     final sessionId = _session?.sessionId;
 
-    _engine = null;
-    _session = null;
+    _peerConnection = null;
+    _dataChannel = null;
+    _localStream = null;
+    _remoteStream = null;
 
-    if (engine != null) {
-      try {
-        await engine.leaveChannel();
-      } catch (_) {}
-      try {
-        await engine.release();
-      } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _connected = false;
+        _listening = false;
+        _micEnabled = false;
+        _remoteJoined = false;
+        _speaking = false;
+        if (resetSessionOnly) {
+          _session = null;
+        }
+      });
+    } else if (resetSessionOnly) {
+      _session = null;
     }
+
+    await _disposeRealtimeObjects(
+      peerConnection: peerConnection,
+      dataChannel: dataChannel,
+      localStream: localStream,
+      remoteStream: remoteStream,
+    );
 
     if (sessionId != null && sessionId.isNotEmpty) {
       try {
@@ -252,27 +352,71 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
     }
   }
 
+  Future<void> _disposeRealtimeObjects({
+    RTCPeerConnection? peerConnection,
+    RTCDataChannel? dataChannel,
+    MediaStream? localStream,
+    MediaStream? remoteStream,
+  }) async {
+    if (dataChannel != null) {
+      try {
+        await dataChannel.close();
+      } catch (_) {}
+    }
+
+    if (localStream != null) {
+      for (final track in localStream.getTracks()) {
+        try {
+          track.stop();
+        } catch (_) {}
+      }
+      try {
+        await localStream.dispose();
+      } catch (_) {}
+    }
+
+    if (remoteStream != null) {
+      for (final track in remoteStream.getTracks()) {
+        try {
+          track.stop();
+        } catch (_) {}
+      }
+      try {
+        await remoteStream.dispose();
+      } catch (_) {}
+    }
+
+    if (peerConnection != null) {
+      try {
+        await peerConnection.close();
+      } catch (_) {}
+    }
+  }
+
   Future<void> _toggleMicOrReconnect() async {
     if (_joining) return;
 
     if (!_connected) {
-      await _startAgoraSession();
+      await _startRealtimeSession();
       return;
     }
 
     final nextEnabled = !_micEnabled;
-    await _engine?.muteLocalAudioStream(!nextEnabled);
+    for (final track
+        in _localStream?.getAudioTracks() ?? const <MediaStreamTrack>[]) {
+      track.enabled = nextEnabled;
+    }
     if (!mounted) return;
 
     setState(() {
       _micEnabled = nextEnabled;
-      _listening = nextEnabled;
+      _listening = nextEnabled && !_speaking;
       _statusText = nextEnabled ? 'Mic đang bật' : 'Mic đang tắt';
     });
   }
 
   Future<void> _closeVoicePage() async {
-    await _teardownAgora();
+    await _teardownRealtime();
     if (!mounted) return;
     widget.onBack();
   }
@@ -341,12 +485,38 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
 
     if (mounted) {
       setState(() {
-        _statusText = 'Sumadi đang soạn câu trả lời…';
+        _statusText = 'Đang gửi lời nhắn cho Sumadi…';
         _errorText = null;
       });
     }
 
     try {
+      if (_dataChannel != null &&
+          _dataChannel!.state == RTCDataChannelState.RTCDataChannelOpen) {
+        _dataChannel!.send(
+          RTCDataChannelMessage(
+            jsonEncode({
+              'type': 'conversation.item.create',
+              'item': {
+                'type': 'message',
+                'role': 'user',
+                'content': [
+                  {'type': 'input_text', 'text': text},
+                ],
+              },
+            }),
+          ),
+        );
+        _dataChannel!.send(
+          RTCDataChannelMessage(jsonEncode({'type': 'response.create'})),
+        );
+        if (!mounted) return;
+        setState(() {
+          _statusText = 'Đã gửi lời nhắn cho Sumadi';
+        });
+        return;
+      }
+
       final reply = await MascotLiveApi.instance.sendChatMessage(
         text,
         history: _buildChatHistory(),
@@ -354,9 +524,7 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
       _appendAssistantMessage(reply);
       if (!mounted) return;
       setState(() {
-        _statusText = _remoteJoined
-            ? 'Sumadi đã vào phòng Agora'
-            : 'Đã gửi prompt cho Sumadi';
+        _statusText = 'Đã gửi prompt cho Sumadi';
       });
     } catch (error) {
       if (!mounted) return;
@@ -377,15 +545,18 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
         .take(8)
         .map(
           (message) => {
-            'role': message.role == VoiceChatMessageRole.user ? 'user' : 'assistant',
+            'role': message.role == VoiceChatMessageRole.user
+                ? 'user'
+                : 'assistant',
             'content': message.text,
           },
         )
         .toList();
   }
 
-  void _appendUserMessage(String text) =>
-      _appendMessage(VoiceChatMessage(role: VoiceChatMessageRole.user, text: text));
+  void _appendUserMessage(String text) => _appendMessage(
+    VoiceChatMessage(role: VoiceChatMessageRole.user, text: text),
+  );
 
   void _appendAssistantMessage(String text) => _appendMessage(
     VoiceChatMessage(role: VoiceChatMessageRole.assistant, text: text),
@@ -410,10 +581,10 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
     final t = ref.watch(themeProvider);
     final statusText = _errorText ?? _statusText;
     final aiSubtitle = _session == null
-        ? 'Agora chưa sẵn sàng'
+        ? 'Realtime chưa sẵn sàng'
         : _remoteJoined
-        ? 'Agora voice đã nối với Sumadi'
-        : 'Đang chờ agent vào channel';
+        ? 'OpenAI Realtime đã nối với Sumadi'
+        : 'Đang chờ Sumadi phản hồi';
 
     return Scaffold(
       body: Container(
@@ -453,7 +624,7 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
                     const Spacer(),
                     _CircleBtn(
                       icon: _remoteJoined ? Icons.graphic_eq : Icons.bolt,
-                      onTap: _joining ? () {} : _startAgoraSession,
+                      onTap: _joining ? () {} : _startRealtimeSession,
                     ),
                   ],
                 ),
@@ -518,19 +689,21 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
                               ),
                               child: Padding(
                                 padding: const EdgeInsets.all(8),
-                                child: Image.asset(
-                                      _remoteJoined
-                                          ? 'assets/images/mascot-speaking.png'
-                                          : 'assets/images/mascot-head.png',
-                                    )
-                                    .animate(
-                                      onPlay: (c) => c.repeat(reverse: true),
-                                    )
-                                    .moveY(
-                                      duration: 2600.ms,
-                                      begin: 0,
-                                      end: -6,
-                                    ),
+                                child:
+                                    Image.asset(
+                                          (_remoteJoined || _speaking)
+                                              ? 'assets/images/mascot-speaking.png'
+                                              : 'assets/images/mascot-head.png',
+                                        )
+                                        .animate(
+                                          onPlay: (c) =>
+                                              c.repeat(reverse: true),
+                                        )
+                                        .moveY(
+                                          duration: 2600.ms,
+                                          begin: 0,
+                                          end: -6,
+                                        ),
                               ),
                             ),
                           ],
@@ -554,7 +727,7 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
                       if (_session != null) ...[
                         const SizedBox(height: 8),
                         Text(
-                          'Channel: ${_session!.rtc.channelName}',
+                          'Model: ${_session!.model}',
                           style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 11.5,
@@ -575,7 +748,9 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
                                 final h = _listening
                                     ? 6 + (sin(tick * 0.7 + i * 0.7).abs() * 30)
                                     : _joining
-                                    ? 6 + (sin(tick * 0.4 + i * 0.35).abs() * 12)
+                                    ? 6 +
+                                          (sin(tick * 0.4 + i * 0.35).abs() *
+                                              12)
                                     : 5 + (sin(i.toDouble()).abs() * 8);
                                 return Container(
                                   margin: const EdgeInsets.symmetric(
@@ -599,10 +774,7 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(18, 0, 18, 14),
-                child: VoiceMessageFeed(
-                  messages: _messages,
-                  ink: t.ink,
-                ),
+                child: VoiceMessageFeed(messages: _messages, ink: t.ink),
               ),
               SizedBox(
                 height: 38,

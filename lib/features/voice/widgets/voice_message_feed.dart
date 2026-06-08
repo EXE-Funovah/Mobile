@@ -16,7 +16,7 @@ class VoiceMessageFeed extends StatelessWidget {
     super.key,
     required this.messages,
     required this.ink,
-    this.emptyMessage = 'Khi agent vào channel, trạng thái Agora sẽ hiện ở đây.',
+    this.emptyMessage = 'Trạng thái kết nối với Sumadi sẽ hiện ở đây.',
     this.maxHeight = 164,
   });
 
@@ -31,7 +31,7 @@ class VoiceMessageFeed extends StatelessWidget {
         ? const [
             VoiceChatMessage(
               role: VoiceChatMessageRole.system,
-              text: 'Khi agent vào channel, trạng thái Agora sẽ hiện ở đây.',
+              text: 'Trạng thái kết nối với Sumadi sẽ hiện ở đây.',
             ),
           ]
         : messages.reversed.toList(growable: false);
