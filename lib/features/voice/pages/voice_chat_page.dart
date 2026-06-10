@@ -1,8 +1,18 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 import '../../../core/theme/theme_provider.dart';
+import '../../../core/utils/network_error_formatter.dart';
+import '../../../data/api/mascot_live_api.dart';
+import '../../../data/models/mascot_live_session.dart';
+import '../widgets/voice_message_feed.dart';
 
 class VoiceChatPage extends ConsumerStatefulWidget {
   final VoidCallback onBack;
@@ -14,8 +24,29 @@ class VoiceChatPage extends ConsumerStatefulWidget {
 
 class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
     with SingleTickerProviderStateMixin {
-  bool _listening = true;
+  static const List<String> _defaultSuggestions = [
+    'Cho ví dụ dễ hiểu',
+    'Giải thích lại ngắn hơn',
+    'Tạo 3 câu hỏi ôn tập',
+  ];
+
   late final AnimationController _ctl;
+
+  final List<VoiceChatMessage> _messages = [];
+
+  bool _listening = false;
+  bool _joining = false;
+  bool _connected = false;
+  bool _remoteJoined = false;
+  bool _micEnabled = false;
+  bool _speaking = false;
+  String _statusText = 'Đang chuẩn bị kết nối Sumadi…';
+  String? _errorText;
+  MascotLiveSession? _session;
+  RTCPeerConnection? _peerConnection;
+  RTCDataChannel? _dataChannel;
+  MediaStream? _localStream;
+  MediaStream? _remoteStream;
 
   @override
   void initState() {
@@ -24,36 +55,555 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat();
+    _bootstrapRealtime();
   }
 
   @override
   void dispose() {
+    unawaited(_teardownRealtime());
     _ctl.dispose();
     super.dispose();
+  }
+
+  Future<void> _bootstrapRealtime() async {
+    _appendSystemMessage('Đang tạo phiên giọng nói với Sumadi…');
+    await _startRealtimeSession();
+  }
+
+  Future<void> _startRealtimeSession() async {
+    if (_joining || _connected) return;
+
+    setState(() {
+      _joining = true;
+      _errorText = null;
+      _statusText = 'Đang xin quyền micro…';
+    });
+
+    try {
+      final micPermission = await Permission.microphone.request();
+      if (!micPermission.isGranted) {
+        throw Exception('Bạn cần cấp quyền micro để trò chuyện với Sumadi.');
+      }
+
+      try {
+        await Helper.setAndroidAudioConfiguration(
+          AndroidAudioConfiguration.communication,
+        );
+      } catch (_) {}
+
+      try {
+        await Helper.setSpeakerphoneOn(true);
+      } catch (_) {}
+
+      if (!mounted) return;
+      setState(() => _statusText = 'Đang tạo phiên OpenAI Realtime…');
+
+      final session = await MascotLiveApi.instance.createSession(
+        displayName: 'Mascoteach learner',
+        language: 'vi',
+      );
+
+      final peerConnection = await createPeerConnection({
+        'sdpSemantics': 'unified-plan',
+      });
+
+      final localStream = await navigator.mediaDevices.getUserMedia({
+        'audio': {
+          'echoCancellation': true,
+          'noiseSuppression': true,
+          'autoGainControl': true,
+        },
+        'video': false,
+      });
+
+      for (final track in localStream.getTracks()) {
+        await peerConnection.addTrack(track, localStream);
+      }
+
+      final dataChannel = await peerConnection.createDataChannel(
+        session.connection.dataChannelLabel,
+        RTCDataChannelInit()..ordered = true,
+      );
+
+      _wirePeerConnection(
+        session: session,
+        peerConnection: peerConnection,
+        dataChannel: dataChannel,
+      );
+
+      final offer = await peerConnection.createOffer({
+        'offerToReceiveAudio': true,
+        'offerToReceiveVideo': false,
+      });
+
+      await peerConnection.setLocalDescription(offer);
+
+      final answerSdp = await MascotLiveApi.instance.exchangeRealtimeSdp(
+        session: session,
+        offerSdp: offer.sdp ?? '',
+      );
+
+      await peerConnection.setRemoteDescription(
+        RTCSessionDescription(answerSdp, 'answer'),
+      );
+
+      if (!mounted) {
+        await _disposeRealtimeObjects(
+          peerConnection: peerConnection,
+          dataChannel: dataChannel,
+          localStream: localStream,
+        );
+        return;
+      }
+
+      setState(() {
+        _session = session;
+        _peerConnection = peerConnection;
+        _dataChannel = dataChannel;
+        _localStream = localStream;
+        _connected = true;
+        _listening = true;
+        _micEnabled = true;
+        _statusText = 'Đã nối OpenAI Realtime • Sumadi đang nghe';
+      });
+      _appendSystemMessage('Đã kết nối giọng nói thời gian thực với Sumadi.');
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _errorText = formatNetworkError(
+          error,
+          fallbackMessage: 'Không kết nối được Sumadi',
+        );
+        _statusText = 'Không kết nối được Sumadi';
+      });
+      _appendSystemMessage(_errorText ?? 'Không kết nối được Sumadi.');
+      await _teardownRealtime(resetSessionOnly: false);
+    } finally {
+      if (mounted) {
+        setState(() => _joining = false);
+      }
+    }
+  }
+
+  void _wirePeerConnection({
+    required MascotLiveSession session,
+    required RTCPeerConnection peerConnection,
+    required RTCDataChannel dataChannel,
+  }) {
+    peerConnection.onTrack = (event) {
+      if (!mounted || event.track.kind != 'audio') return;
+      setState(() {
+        _remoteJoined = true;
+        _speaking = true;
+        _statusText = 'Sumadi đang phản hồi…';
+      });
+      if (event.streams.isNotEmpty) {
+        _remoteStream = event.streams.first;
+      }
+    };
+
+    peerConnection.onConnectionState = (state) {
+      if (!mounted) return;
+      switch (state) {
+        case RTCPeerConnectionState.RTCPeerConnectionStateConnecting:
+          setState(() => _statusText = 'Đang kết nối OpenAI Realtime…');
+          break;
+        case RTCPeerConnectionState.RTCPeerConnectionStateConnected:
+          setState(() {
+            _connected = true;
+            _remoteJoined = true;
+            _statusText = _speaking
+                ? 'Sumadi đang phản hồi…'
+                : (_micEnabled
+                      ? 'Đã nối OpenAI Realtime • Sumadi đang nghe'
+                      : 'Mic đang tắt');
+          });
+          break;
+        case RTCPeerConnectionState.RTCPeerConnectionStateDisconnected:
+          setState(() => _statusText = 'Kết nối Realtime bị gián đoạn');
+          break;
+        case RTCPeerConnectionState.RTCPeerConnectionStateFailed:
+          setState(() => _statusText = 'Kết nối Realtime thất bại');
+          break;
+        case RTCPeerConnectionState.RTCPeerConnectionStateClosed:
+          setState(() => _statusText = 'Đã đóng phiên giọng nói');
+          break;
+        default:
+          break;
+      }
+    };
+
+    dataChannel.onDataChannelState = (state) {
+      if (!mounted) return;
+      if (state == RTCDataChannelState.RTCDataChannelOpen) {
+        _appendSystemMessage('Kênh điều khiển giọng nói đã sẵn sàng.');
+        setState(() {
+          _listening = _micEnabled;
+          _statusText = _speaking
+              ? 'Sumadi đang phản hồi…'
+              : (_micEnabled
+                    ? 'Đã nối OpenAI Realtime • Sumadi đang nghe'
+                    : 'Mic đang tắt');
+        });
+      }
+    };
+
+    dataChannel.onMessage = (message) {
+      if (message.isBinary) return;
+      _handleRealtimeEvent(message.text, session);
+    };
+  }
+
+  void _handleRealtimeEvent(String raw, MascotLiveSession session) {
+    try {
+      final event = jsonDecode(raw);
+      if (event is! Map<String, dynamic>) return;
+
+      final type = event['type']?.toString() ?? '';
+      if (!mounted) return;
+
+      switch (type) {
+        case 'response.created':
+        case 'response.output_item.added':
+          setState(() {
+            _speaking = true;
+            _listening = false;
+            _remoteJoined = true;
+            _statusText = 'Sumadi đang phản hồi…';
+          });
+          break;
+        case 'response.done':
+        case 'response.completed':
+        case 'output_audio_buffer.stopped':
+          setState(() {
+            _speaking = false;
+            _listening = _micEnabled;
+            _statusText = _micEnabled ? 'Sumadi đang nghe' : 'Mic đang tắt';
+          });
+          break;
+        case 'error':
+          final message =
+              (event['error'] is Map
+                      ? (event['error'] as Map)['message']
+                      : null)
+                  ?.toString() ??
+              'OpenAI Realtime gặp lỗi';
+          setState(() {
+            _errorText = message;
+            _statusText = message;
+          });
+          _appendSystemMessage(message);
+          break;
+        case 'response.audio_transcript.done':
+        case 'response.output_text.done':
+          final text =
+              event['text']?.toString().trim() ??
+              (event['transcript']?.toString().trim() ?? '');
+          if (text.isNotEmpty) {
+            _appendAssistantMessage(text);
+          }
+          break;
+        default:
+          break;
+      }
+    } catch (_) {
+      // Ignore unrecognized realtime events.
+    }
+  }
+
+  Future<void> _teardownRealtime({bool resetSessionOnly = true}) async {
+    final peerConnection = _peerConnection;
+    final dataChannel = _dataChannel;
+    final localStream = _localStream;
+    final remoteStream = _remoteStream;
+    final sessionId = _session?.sessionId;
+
+    _peerConnection = null;
+    _dataChannel = null;
+    _localStream = null;
+    _remoteStream = null;
+
+    if (mounted) {
+      setState(() {
+        _connected = false;
+        _listening = false;
+        _micEnabled = false;
+        _remoteJoined = false;
+        _speaking = false;
+        if (resetSessionOnly) {
+          _session = null;
+        }
+      });
+    } else if (resetSessionOnly) {
+      _session = null;
+    }
+
+    await _disposeRealtimeObjects(
+      peerConnection: peerConnection,
+      dataChannel: dataChannel,
+      localStream: localStream,
+      remoteStream: remoteStream,
+    );
+
+    if (sessionId != null && sessionId.isNotEmpty) {
+      try {
+        await MascotLiveApi.instance.endSession(sessionId);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _disposeRealtimeObjects({
+    RTCPeerConnection? peerConnection,
+    RTCDataChannel? dataChannel,
+    MediaStream? localStream,
+    MediaStream? remoteStream,
+  }) async {
+    if (dataChannel != null) {
+      try {
+        await dataChannel.close();
+      } catch (_) {}
+    }
+
+    if (localStream != null) {
+      for (final track in localStream.getTracks()) {
+        try {
+          track.stop();
+        } catch (_) {}
+      }
+      try {
+        await localStream.dispose();
+      } catch (_) {}
+    }
+
+    if (remoteStream != null) {
+      for (final track in remoteStream.getTracks()) {
+        try {
+          track.stop();
+        } catch (_) {}
+      }
+      try {
+        await remoteStream.dispose();
+      } catch (_) {}
+    }
+
+    if (peerConnection != null) {
+      try {
+        await peerConnection.close();
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _toggleMicOrReconnect() async {
+    if (_joining) return;
+
+    if (!_connected) {
+      await _startRealtimeSession();
+      return;
+    }
+
+    final nextEnabled = !_micEnabled;
+    for (final track
+        in _localStream?.getAudioTracks() ?? const <MediaStreamTrack>[]) {
+      track.enabled = nextEnabled;
+    }
+    if (!mounted) return;
+
+    setState(() {
+      _micEnabled = nextEnabled;
+      _listening = nextEnabled && !_speaking;
+      _statusText = nextEnabled ? 'Mic đang bật' : 'Mic đang tắt';
+    });
+  }
+
+  Future<void> _closeVoicePage() async {
+    await _teardownRealtime();
+    if (!mounted) return;
+    widget.onBack();
+  }
+
+  Future<void> _openPromptComposer() async {
+    final controller = TextEditingController();
+    final text = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, bottomInset + 16),
+          child: Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      hintText: 'Nhập lời nhắn cho Sumadi…',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Hủy'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () =>
+                              Navigator.of(context).pop(controller.text.trim()),
+                          child: const Text('Gửi'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    final prompt = text?.trim() ?? '';
+    if (prompt.isEmpty) return;
+    await _sendPrompt(prompt);
+  }
+
+  Future<void> _sendPrompt(String text) async {
+    _appendUserMessage(text);
+
+    if (mounted) {
+      setState(() {
+        _statusText = 'Đang gửi lời nhắn cho Sumadi…';
+        _errorText = null;
+      });
+    }
+
+    try {
+      if (_dataChannel != null &&
+          _dataChannel!.state == RTCDataChannelState.RTCDataChannelOpen) {
+        _dataChannel!.send(
+          RTCDataChannelMessage(
+            jsonEncode({
+              'type': 'conversation.item.create',
+              'item': {
+                'type': 'message',
+                'role': 'user',
+                'content': [
+                  {'type': 'input_text', 'text': text},
+                ],
+              },
+            }),
+          ),
+        );
+        _dataChannel!.send(
+          RTCDataChannelMessage(jsonEncode({'type': 'response.create'})),
+        );
+        if (!mounted) return;
+        setState(() {
+          _statusText = 'Đã gửi lời nhắn cho Sumadi';
+        });
+        return;
+      }
+
+      final reply = await MascotLiveApi.instance.sendChatMessage(
+        text,
+        history: _buildChatHistory(),
+      );
+      _appendAssistantMessage(reply);
+      if (!mounted) return;
+      setState(() {
+        _statusText = 'Đã gửi prompt cho Sumadi';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _errorText = formatNetworkError(
+          error,
+          fallbackMessage: 'Không gửi được prompt',
+        );
+        _statusText = 'Không gửi được prompt';
+      });
+      _appendSystemMessage(_errorText ?? 'Không gửi được prompt');
+    }
+  }
+
+  List<Map<String, String>> _buildChatHistory() {
+    return _messages
+        .where((message) => !message.isSystem)
+        .take(8)
+        .map(
+          (message) => {
+            'role': message.role == VoiceChatMessageRole.user
+                ? 'user'
+                : 'assistant',
+            'content': message.text,
+          },
+        )
+        .toList();
+  }
+
+  void _appendUserMessage(String text) => _appendMessage(
+    VoiceChatMessage(role: VoiceChatMessageRole.user, text: text),
+  );
+
+  void _appendAssistantMessage(String text) => _appendMessage(
+    VoiceChatMessage(role: VoiceChatMessageRole.assistant, text: text),
+  );
+
+  void _appendSystemMessage(String text) => _appendMessage(
+    VoiceChatMessage(role: VoiceChatMessageRole.system, text: text),
+  );
+
+  void _appendMessage(VoiceChatMessage message) {
+    if (!mounted) return;
+    setState(() {
+      _messages.add(message);
+      if (_messages.length > 8) {
+        _messages.removeRange(0, _messages.length - 8);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final t = ref.watch(themeProvider);
+    final statusText = _errorText ?? _statusText;
+    final aiSubtitle = _session == null
+        ? 'Realtime chưa sẵn sàng'
+        : _remoteJoined
+        ? 'OpenAI Realtime đã nối với Sumadi'
+        : 'Đang chờ Sumadi phản hồi';
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(gradient: t.heroGradient),
         child: SafeArea(
           child: Column(
             children: [
-              // Header
               Padding(
                 padding: const EdgeInsets.fromLTRB(18, 6, 18, 0),
                 child: Row(
                   children: [
                     _CircleBtn(
                       icon: Icons.arrow_back_ios_new,
-                      onTap: widget.onBack,
+                      onTap: _closeVoicePage,
                     ),
                     const Spacer(),
-                    const Column(
+                    Column(
                       children: [
-                        Text(
+                        const Text(
                           'Sumadi',
                           style: TextStyle(
                             color: Colors.white,
@@ -62,8 +612,8 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
                           ),
                         ),
                         Text(
-                          'Gia sư AI',
-                          style: TextStyle(
+                          aiSubtitle,
+                          style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 11.5,
                             fontWeight: FontWeight.w600,
@@ -72,12 +622,13 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
                       ],
                     ),
                     const Spacer(),
-                    _CircleBtn(icon: Icons.bolt, onTap: () {}),
+                    _CircleBtn(
+                      icon: _remoteJoined ? Icons.graphic_eq : Icons.bolt,
+                      onTap: _joining ? () {} : _startRealtimeSession,
+                    ),
                   ],
                 ),
               ),
-
-              // Mascot + sonar rings
               Expanded(
                 child: Center(
                   child: Column(
@@ -140,7 +691,9 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
                                 padding: const EdgeInsets.all(8),
                                 child:
                                     Image.asset(
-                                          'assets/images/mascot-speaking.png',
+                                          (_remoteJoined || _speaking)
+                                              ? 'assets/images/mascot-speaking.png'
+                                              : 'assets/images/mascot-head.png',
                                         )
                                         .animate(
                                           onPlay: (c) =>
@@ -157,16 +710,32 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        _listening ? 'Đang nghe…' : 'Sumadi đang nói…',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 17,
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 96),
+                        child: SingleChildScrollView(
+                          child: Text(
+                            statusText,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 17,
+                            ),
+                          ),
                         ),
                       ),
+                      if (_session != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Model: ${_session!.model}',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 14),
-                      // Waveform
                       SizedBox(
                         height: 40,
                         child: AnimatedBuilder(
@@ -178,6 +747,10 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
                                 final tick = _ctl.value * 10;
                                 final h = _listening
                                     ? 6 + (sin(tick * 0.7 + i * 0.7).abs() * 30)
+                                    : _joining
+                                    ? 6 +
+                                          (sin(tick * 0.4 + i * 0.35).abs() *
+                                              12)
                                     : 5 + (sin(i.toDouble()).abs() * 8);
                                 return Container(
                                   margin: const EdgeInsets.symmetric(
@@ -199,114 +772,37 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
                   ),
                 ),
               ),
-
-              // Transcripts
               Padding(
                 padding: const EdgeInsets.fromLTRB(18, 0, 18, 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.75,
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(16),
-                              topRight: Radius.circular(16),
-                              bottomLeft: Radius.circular(16),
-                              bottomRight: Radius.circular(4),
-                            ),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x2E000000),
-                                blurRadius: 14,
-                                offset: Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            'Giải thích giúp mình quá trình nguyên phân với?',
-                            style: TextStyle(
-                              color: t.ink,
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w500,
-                              height: 1.45,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.8,
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.16),
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(16),
-                              topRight: Radius.circular(16),
-                              bottomLeft: Radius.circular(4),
-                              bottomRight: Radius.circular(16),
-                            ),
-                          ),
-                          child: const Text(
-                            'Được luôn! Nguyên phân gồm 4 kỳ chính: kỳ đầu, kỳ giữa, kỳ sau và kỳ cuối. Mình bắt đầu từ kỳ đầu nhé…',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w500,
-                              height: 1.45,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                child: VoiceMessageFeed(messages: _messages, ink: t.ink),
               ),
-
-              // Suggestion chips
               SizedBox(
                 height: 38,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 18),
-                  children: ['Cho ví dụ', 'Giải thích lại', 'Tạo câu hỏi']
+                  children: _defaultSuggestions
                       .map(
                         (c) => Padding(
                           padding: const EdgeInsets.only(right: 8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              c,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12.5,
+                          child: GestureDetector(
+                            onTap: () => _sendPrompt(c),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.16),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                c,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12.5,
+                                ),
                               ),
                             ),
                           ),
@@ -315,26 +811,27 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
                       .toList(),
                 ),
               ),
-
-              // Mic control
               Padding(
                 padding: const EdgeInsets.fromLTRB(0, 4, 0, 24),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _SideBtn(icon: Icons.send_rounded, onTap: () {}),
+                    _SideBtn(
+                      icon: Icons.send_rounded,
+                      onTap: _openPromptComposer,
+                    ),
                     GestureDetector(
-                      onTap: () => setState(() => _listening = !_listening),
+                      onTap: _toggleMicOrReconnect,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 250),
                         width: 76,
                         height: 76,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: _listening ? Colors.white : t.accent,
+                          color: _micEnabled ? Colors.white : t.accent,
                           boxShadow: [
                             BoxShadow(
-                              color: _listening
+                              color: _micEnabled
                                   ? Colors.white.withValues(alpha: 0.18)
                                   : t.accent.withValues(alpha: 0.25),
                               blurRadius: 0,
@@ -343,14 +840,18 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
                           ],
                         ),
                         child: Icon(
-                          Icons.mic_rounded,
+                          _connected
+                              ? (_micEnabled
+                                    ? Icons.mic_rounded
+                                    : Icons.mic_off_rounded)
+                              : Icons.power_settings_new_rounded,
                           size: 32,
-                          color: _listening ? t.primaryDeep : Colors.white,
+                          color: _micEnabled ? t.primaryDeep : Colors.white,
                         ),
                       ),
                     ),
                     GestureDetector(
-                      onTap: widget.onBack,
+                      onTap: _closeVoicePage,
                       child: Container(
                         width: 50,
                         height: 50,
