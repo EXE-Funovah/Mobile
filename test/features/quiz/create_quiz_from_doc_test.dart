@@ -14,6 +14,9 @@ class FakeDocumentApi implements DocumentApi {
   bool generateUploadUrlCalled = false;
   bool putToS3Called = false;
   bool createFromS3KeyCalled = false;
+  String? presignContentType;
+  String? putContentType;
+  Uint8List? putBytes;
 
   @override
   Future<doc_model.PresignResponse> generateUploadUrl({
@@ -21,6 +24,7 @@ class FakeDocumentApi implements DocumentApi {
     required String contentType,
   }) async {
     generateUploadUrlCalled = true;
+    presignContentType = contentType;
     return const doc_model.PresignResponse(
       uploadUrl: 'https://s3.amazonaws.com/upload-presigned',
       s3Key: 'uploads/test-file.pdf',
@@ -35,15 +39,21 @@ class FakeDocumentApi implements DocumentApi {
     File? file,
   }) async {
     putToS3Called = true;
+    putContentType = contentType;
+    putBytes = bytes;
   }
 
   @override
-  Future<doc_model.DocumentDto> createFromS3Key(String s3Key) async {
+  Future<doc_model.DocumentDto> createFromS3Key(
+    String s3Key, {
+    String? fileName,
+  }) async {
     createFromS3KeyCalled = true;
     return doc_model.DocumentDto(
       id: 42,
       s3Key: s3Key,
       presignedUrl: 'https://s3.amazonaws.com/test-file.pdf',
+      fileName: fileName,
       uploadedAt: DateTime.now(),
     );
   }
@@ -196,7 +206,6 @@ void main() {
         final service = QuizGenerationService.instance;
         final result = await service.generateQuestionsFromFile(
           fileName: 'biology.pdf',
-          contentType: 'application/pdf',
           fileBytes: Uint8List.fromList([1, 2, 3]),
           quizTitle: 'Biology Cell Quiz',
           numberOfQuestions: 5,
@@ -207,6 +216,16 @@ void main() {
         expect(fakeDocApi.generateUploadUrlCalled, isTrue);
         expect(fakeDocApi.putToS3Called, isTrue);
         expect(fakeDocApi.createFromS3KeyCalled, isTrue);
+
+        // Backend chỉ ký presigned URL cho application/zip — file phải được
+        // nén zip trước khi PUT, không được upload bytes thô.
+        expect(fakeDocApi.presignContentType, 'application/zip');
+        expect(fakeDocApi.putContentType, 'application/zip');
+        expect(fakeDocApi.putBytes, isNotNull);
+        // Zip luôn bắt đầu bằng magic bytes "PK" (0x50 0x4B)
+        expect(fakeDocApi.putBytes!.length, greaterThan(2));
+        expect(fakeDocApi.putBytes![0], 0x50);
+        expect(fakeDocApi.putBytes![1], 0x4B);
 
         // Verify AI API was called
         expect(fakeAiApi.generateQuestionsCalled, isTrue);
@@ -242,11 +261,14 @@ void main() {
           ),
         ];
 
-        await service.saveGeneratedQuiz(
+        final created = await service.saveGeneratedQuiz(
           documentId: 42,
           quizTitle: 'Biology Cell Quiz Updated',
           questions: previewQuestions,
         );
+
+        // Trả về quiz vừa tạo để caller chơi đúng quiz đó (như web targetQuizId)
+        expect(created.id, 99);
 
         // Verify Quiz API create was called
         expect(fakeQuizApi.createQuizCalled, isTrue);

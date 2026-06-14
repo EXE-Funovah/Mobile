@@ -44,3 +44,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 *.hprof
+
+# vexp (Graph-RAG index metadata — máy local, không cần version control)
+.vexp/

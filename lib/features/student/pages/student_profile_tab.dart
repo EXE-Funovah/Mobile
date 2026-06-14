@@ -5,6 +5,7 @@ import '../../../core/theme/theme_provider.dart';
 import '../../../core/theme/theme_tokens.dart';
 import '../../../data/models/user.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../quiz/providers/user_stats_provider.dart';
 import '../../shared/widgets/themed_card.dart';
 
 class StudentProfileTab extends ConsumerWidget {
@@ -29,11 +30,24 @@ class StudentProfileTab extends ConsumerWidget {
     final auth = ref.watch(authProvider);
     final name = auth.displayName ?? 'Học sinh';
     final roleLabel = _roleLabel(auth.role);
-    // TODO(gamification): thay 0 bằng UserStats khi BE sẵn sàng.
-    final stats = const [
-      (i: Icons.local_fire_department, v: '0', l: 'ngày streak', tint: 1),
-      (i: Icons.gps_fixed, v: '0', l: 'câu đúng', tint: 2),
-      (i: Icons.access_time, v: '0h', l: 'đã học', tint: 0),
+    final s = ref.watch(userStatsProvider).valueOrNull;
+    final hours = ((s?.totalLearningMinutes ?? 0) / 60).toStringAsFixed(
+      (s?.totalLearningMinutes ?? 0) % 60 == 0 ? 0 : 1,
+    );
+    final stats = [
+      (
+        i: Icons.local_fire_department,
+        v: '${s?.effectiveStreak ?? 0}',
+        l: 'ngày streak',
+        tint: 1,
+      ),
+      (
+        i: Icons.gps_fixed,
+        v: '${s?.totalCorrectAnswers ?? 0}',
+        l: 'câu đúng',
+        tint: 2,
+      ),
+      (i: Icons.access_time, v: '${hours}h', l: 'đã học', tint: 0),
     ];
 
     return ListView(
@@ -85,6 +99,100 @@ class StudentProfileTab extends ConsumerWidget {
             ),
           ],
         ),
+        const SizedBox(height: 18),
+
+        // Upgrade Premium banner
+        GestureDetector(
+          onTap: () => context.push('/student/pricing'),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: t.heroGradient,
+              borderRadius: BorderRadius.circular(t.cardRadius),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x331B3A6B),
+                  blurRadius: 28,
+                  offset: Offset(0, 12),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(t.cardRadius),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned(
+                    right: -24,
+                    top: -24,
+                    child: Container(
+                      width: 110,
+                      height: 110,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.10),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: t.accent,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: t.accent.withValues(alpha: 0.45),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.workspace_premium,
+                          color: Colors.white,
+                          size: 26,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Nâng cấp Premium',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Học không giới hạn · từ 99.000đ/tháng',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xD1FFFFFF),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: Color(0xE6FFFFFF),
+                        size: 20,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
         const SizedBox(height: 20),
 
         // Stats
@@ -129,7 +237,7 @@ class StudentProfileTab extends ConsumerWidget {
         ),
         const SizedBox(height: 14),
 
-        // XP bar — placeholder, sẽ nối /api/UserStats/me
+        // XP bar — dữ liệu thật từ /api/UserStats/me
         ThemedCard(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -139,7 +247,8 @@ class StudentProfileTab extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Cấp 1',
+                    'Cấp ${s?.level ?? 1}'
+                    '${(s?.xp ?? 0) > 0 ? ' → ${(s?.level ?? 1) + 1}' : ''}',
                     style: TextStyle(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w800,
@@ -147,7 +256,7 @@ class StudentProfileTab extends ConsumerWidget {
                     ),
                   ),
                   Text(
-                    '0 / 2.000 XP',
+                    '${(s?.xp ?? 0) % 2000} / 2.000 XP',
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
@@ -165,7 +274,7 @@ class StudentProfileTab extends ConsumerWidget {
                     children: [
                       Container(color: t.surfaceSunken),
                       FractionallySizedBox(
-                        widthFactor: 0,
+                        widthFactor: ((s?.xp ?? 0) % 2000) / 2000,
                         child: Container(
                           decoration: BoxDecoration(gradient: t.fabGradient),
                         ),

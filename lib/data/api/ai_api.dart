@@ -6,6 +6,15 @@ class AiApi {
   AiApi._();
   static AiApi instance = AiApi._();
 
+  /// Key PHẢI là String — jsonEncode không encode được Map key int
+  /// ("Converting object to an encodable object failed: _Map len:3").
+  /// AI service nhận key "1"/"2"/"3" giống web (JS object key luôn là string).
+  static Map<String, int> difficultyDistributionFor(String difficulty) {
+    if (difficulty == 'Dễ') return {'1': 50, '2': 30, '3': 20};
+    if (difficulty == 'Khó') return {'1': 20, '2': 40, '3': 40};
+    return {'1': 40, '2': 40, '3': 20};
+  }
+
   Future<List<GeneratedQuestionDto>> generateQuestions({
     required String fileUrl,
     required int documentId,
@@ -13,14 +22,7 @@ class AiApi {
     required int numberOfQuestions,
     required String difficulty,
   }) async {
-    Map<int, int> distribution;
-    if (difficulty == 'Dễ') {
-      distribution = {1: 50, 2: 30, 3: 20};
-    } else if (difficulty == 'Khó') {
-      distribution = {1: 20, 2: 40, 3: 40};
-    } else {
-      distribution = {1: 40, 2: 40, 3: 20};
-    }
+    final distribution = difficultyDistributionFor(difficulty);
 
     final raw = Dio(
       BaseOptions(

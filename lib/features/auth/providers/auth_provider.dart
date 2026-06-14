@@ -1,9 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/utils/jwt_utils.dart';
 import '../../../data/api/auth_api.dart';
+import '../../../data/api/dio_client.dart';
 import '../../../data/models/user.dart';
 import '../../../data/storage/token_storage.dart';
+
+/// Giống thông báo web hiển thị khi token bị 401 (api.js).
+const sessionExpiredMessage =
+    'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.';
 
 class AuthState {
   final bool loading;
@@ -42,6 +48,9 @@ class AuthState {
 
 class AuthController extends StateNotifier<AuthState> {
   AuthController() : super(const AuthState()) {
+    // DioClient báo về khi token bị 401/hết hạn → force logout để router
+    // đá về /login (web làm tương tự: clearAuth → redirect /signin).
+    DioClient.onSessionExpired = sessionExpired;
     _bootstrap();
   }
 
@@ -51,12 +60,30 @@ class AuthController extends StateNotifier<AuthState> {
     final roleStr = await TokenStorage.instance.getRole();
 
     if (token != null && token.isNotEmpty) {
+      // JWT backend sống 60' và không có refresh endpoint — token cũ trong
+      // storage gần như chắc chắn đã chết khi mở lại app. Khôi phục nó chỉ
+      // tạo phiên "ma": UI tưởng đăng nhập nhưng mọi API đều 401.
+      if (isJwtExpired(token)) {
+        await TokenStorage.instance.clear();
+        return;
+      }
       state = state.copyWith(
         token: token,
         displayName: name,
         role: roleStr != null ? roleFromString(roleStr) : UserRole.unknown,
       );
     }
+  }
+
+  /// Token bị backend từ chối (401) hoặc hết hạn giữa phiên.
+  void sessionExpired() {
+    if (!mounted || !state.isAuthenticated) return;
+    state = const AuthState(error: sessionExpiredMessage);
+  }
+
+  /// Xoá error sau khi đã hiển thị (vd. snackbar ở LoginPage).
+  void clearError() {
+    state = state.copyWith(clearError: true);
   }
 
   Future<bool> login(String email, String password) async {
@@ -157,8 +184,9 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> logout() async {
     // Sign out khỏi Google luôn để lần sau user có thể chọn account khác
     try {
-      await GoogleSignIn(serverClientId: ApiConstants.googleWebClientId)
-          .signOut();
+      await GoogleSignIn(
+        serverClientId: ApiConstants.googleWebClientId,
+      ).signOut();
     } catch (_) {
       // Bỏ qua lỗi nếu Google chưa init
     }

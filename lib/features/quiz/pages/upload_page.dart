@@ -12,9 +12,9 @@ import '../../../data/api/ai_api.dart';
 import '../../shared/widgets/flow_header.dart';
 import '../../shared/widgets/themed_card.dart';
 import '../providers/documents_provider.dart';
-import '../providers/quiz_generation_service.dart';
+import 'quiz_preview_page.dart';
 
-enum _UploadStatus { idle, processing, done, error }
+enum _UploadStatus { idle, processing, error }
 
 class UploadPage extends ConsumerStatefulWidget {
   const UploadPage({super.key});
@@ -28,7 +28,6 @@ class _UploadPageState extends ConsumerState<UploadPage> {
   int _step = 0;
   String? _fileName;
   int? _fileSize;
-  int? _newDocId;
   String? _errorMsg;
 
   final _steps = const [
@@ -68,45 +67,62 @@ class _UploadPageState extends ConsumerState<UploadPage> {
     });
 
     try {
-      final contentType = _guessContentType(file.name);
+      // Đọc bytes file gốc (web có sẵn bytes, mobile đọc từ path)
+      final rawBytes =
+          file.bytes ??
+          (file.path != null ? await File(file.path!).readAsBytes() : null);
+      if (rawBytes == null) {
+        throw Exception('Không đọc được nội dung file.');
+      }
+
+      // Nén thành zip — backend chỉ ký presigned URL cho application/zip,
+      // PUT file thô sẽ bị S3 403 (lệch chữ ký).
+      final zipped = DocumentApi.zipSingleFile(
+        fileName: file.name,
+        bytes: rawBytes,
+      );
+
       // Step 1 — presign + PUT S3
       final presign = await DocumentApi.instance.generateUploadUrl(
         fileName: file.name,
-        contentType: contentType,
+        contentType: 'application/zip',
       );
       await DocumentApi.instance.putToS3(
         uploadUrl: presign.uploadUrl,
-        contentType: contentType,
-        bytes: file.bytes,
-        file: (!kIsWeb && file.path != null) ? File(file.path!) : null,
+        contentType: 'application/zip',
+        bytes: zipped,
       );
       if (!mounted) return;
       setState(() => _step = 1);
 
-      // Step 2 — create document
-      final created = await DocumentApi.instance.createFromS3Key(presign.s3Key);
+      // Step 2 — create document (kèm tên gốc để hiển thị đẹp)
+      final created = await DocumentApi.instance.createFromS3Key(
+        presign.s3Key,
+        fileName: file.name,
+      );
       ref.read(documentsProvider.notifier).addOptimistic(created);
       if (!mounted) return;
-      setState(() {
-        _step = 2;
-        _newDocId = created.id;
-      });
+      setState(() => _step = 2);
 
-      // Step 3 — tạo câu hỏi thật bằng AI API và lưu vào database
+      // Step 3 — AI soạn câu hỏi. CHƯA lưu — giáo viên xem trước rồi mới
+      // bấm Xuất bản (giống web: quiz chỉ tạo khi publish, status Teacher_Approved).
+      final quizTitle = 'Trắc nghiệm: ${created.displayName}';
       final questions = await AiApi.instance.generateQuestions(
         fileUrl: created.presignedUrl,
         documentId: created.id,
-        quizTitle: 'Trắc nghiệm: ${created.displayName}',
+        quizTitle: quizTitle,
         numberOfQuestions: 5,
         difficulty: 'Vừa',
       );
-      await QuizGenerationService.instance.saveGeneratedQuiz(
-        documentId: created.id,
-        quizTitle: 'Trắc nghiệm: ${created.displayName}',
-        questions: questions,
-      );
       if (!mounted) return;
-      setState(() => _status = _UploadStatus.done);
+      context.pushReplacement(
+        '/student/quiz-preview',
+        extra: QuizPreviewArgs(
+          documentId: created.id,
+          quizTitle: quizTitle,
+          questions: questions,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -114,21 +130,6 @@ class _UploadPageState extends ConsumerState<UploadPage> {
         _errorMsg = e.toString().replaceFirst('Exception: ', '');
       });
     }
-  }
-
-  String _guessContentType(String name) {
-    final lower = name.toLowerCase();
-    if (lower.endsWith('.pdf')) return 'application/pdf';
-    if (lower.endsWith('.docx')) {
-      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    }
-    if (lower.endsWith('.doc')) return 'application/msword';
-    if (lower.endsWith('.pptx')) {
-      return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-    }
-    if (lower.endsWith('.png')) return 'image/png';
-    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
-    return 'application/octet-stream';
   }
 
   @override
@@ -162,8 +163,6 @@ class _UploadPageState extends ConsumerState<UploadPage> {
         return _idleView(t);
       case _UploadStatus.processing:
         return _processingView(t);
-      case _UploadStatus.done:
-        return _doneView(t);
       case _UploadStatus.error:
         return _errorView(t);
     }
@@ -551,123 +550,6 @@ class _UploadPageState extends ConsumerState<UploadPage> {
         }),
       ],
     ).animate().fadeIn(duration: 350.ms);
-  }
-
-  Widget _doneView(AppTokens t) {
-    return Padding(
-          padding: const EdgeInsets.only(top: 18),
-          child: Column(
-            children: [
-              SizedBox(
-                width: 150,
-                height: 150,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: t.ok.withValues(alpha: 0.12),
-                      ),
-                    ),
-                    Image.asset('assets/images/mascot-idle.png', width: 128),
-                    Positioned(
-                      top: 6,
-                      right: 14,
-                      child: Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          color: t.ok,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: t.appBg, width: 3),
-                        ),
-                        child: const Icon(
-                          Icons.check_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Tải lên thành công!',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: t.displayWeight,
-                  color: t.ink,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 6),
-              SizedBox(
-                width: 280,
-                child: Text(
-                  'Sumadi đã đọc xong tài liệu của bạn và soạn sẵn bộ câu hỏi.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    color: t.ink2,
-                    height: 1.55,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 22),
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton.icon(
-                  onPressed: () => context.go(
-                    _newDocId != null
-                        ? '/student/doc-detail?id=$_newDocId'
-                        : '/student/doc-detail',
-                  ),
-                  icon: const Icon(
-                    Icons.arrow_forward_rounded,
-                    color: Colors.white,
-                  ),
-                  label: const Text('Xem tài liệu'),
-                  style:
-                      ElevatedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: Colors.transparent,
-                        shadowColor: t.fabRing,
-                        elevation: 8,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ).copyWith(
-                        backgroundBuilder: (ctx, st, child) => Ink(
-                          decoration: BoxDecoration(
-                            gradient: t.fabGradient,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: child,
-                        ),
-                        textStyle: WidgetStateProperty.all(
-                          const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                ),
-              ),
-            ],
-          ),
-        )
-        .animate()
-        .scale(
-          duration: 400.ms,
-          curve: Curves.easeOutBack,
-          begin: const Offset(0.9, 0.9),
-          end: const Offset(1, 1),
-        )
-        .fadeIn();
   }
 }
 

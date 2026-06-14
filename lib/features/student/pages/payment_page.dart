@@ -43,7 +43,10 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
 
   Future<void> _submit(PricingPlan plan) async {
     setState(() => _processing = true);
-    // Mock: chỉ giả lập độ trễ thanh toán
+    // UI mock thuần — backend đã gỡ endpoint upgrade vì chưa có cổng
+    // thanh toán + authorization model thật (xem .codex/skills/
+    // mascoteach-gamification.md). Tier KHÔNG đổi cho tới khi BE có
+    // payment flow thật.
     await Future.delayed(const Duration(milliseconds: 1800));
     if (!mounted) return;
     setState(() => _processing = false);
@@ -113,7 +116,7 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
                   Icon(Icons.info_outline, size: 16, color: t.inkMuted),
                   const SizedBox(width: 8),
                   Text(
-                    'Đây là bản mock — chưa trừ tiền thật',
+                    'Mock payment — gói đã kích hoạt, chưa trừ tiền thật',
                     style: TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,

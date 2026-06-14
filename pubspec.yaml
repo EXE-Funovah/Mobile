@@ -42,6 +42,9 @@ dependencies:
 
   # App version cho trang Cài đặt
   package_info_plus: ^8.0.2
+
+  # Nén file thành .zip trước khi upload (backend ký presigned URL cho application/zip)
+  archive: ^3.6.1
   flutter_webrtc: ^1.4.1
   permission_handler: ^12.0.3
 

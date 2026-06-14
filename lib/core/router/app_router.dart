@@ -11,6 +11,7 @@ import '../../features/auth/providers/auth_provider.dart';
 import '../../features/quiz/pages/create_quiz_from_doc_page.dart';
 import '../../features/quiz/pages/doc_detail_page.dart';
 import '../../features/quiz/pages/quiz_play_page.dart';
+import '../../features/quiz/pages/quiz_preview_page.dart';
 import '../../features/quiz/pages/quiz_result_page.dart';
 import '../../features/quiz/pages/upload_page.dart';
 import '../../features/student/pages/account_page.dart';
@@ -50,7 +51,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/register', builder: (_, _) => const RegisterPage()),
       GoRoute(path: '/student', builder: (_, _) => const StudentShell()),
       GoRoute(path: '/student/account', builder: (_, _) => const AccountPage()),
-      GoRoute(path: '/student/settings', builder: (_, _) => const SettingsPage()),
+      GoRoute(
+        path: '/student/settings',
+        builder: (_, _) => const SettingsPage(),
+      ),
       GoRoute(path: '/student/pricing', builder: (_, _) => const PricingPage()),
       GoRoute(
         path: '/student/payment',
@@ -60,6 +64,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(path: '/student/upload', builder: (_, _) => const UploadPage()),
+      GoRoute(
+        path: '/student/quiz-preview',
+        builder: (ctx, st) {
+          final args = st.extra;
+          // Không có args (vd. deep link) thì quay về upload để bắt đầu lại.
+          if (args is! QuizPreviewArgs) return const UploadPage();
+          return QuizPreviewPage(args: args);
+        },
+      ),
       GoRoute(
         path: '/student/doc-detail',
         builder: (ctx, st) {

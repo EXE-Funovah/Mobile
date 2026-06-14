@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:archive/archive.dart';
 import 'package:dio/dio.dart';
 import '../../core/constants/api_constants.dart';
 import '../models/document.dart';
@@ -46,10 +47,31 @@ class DocumentApi {
   }
 
   /// POST /api/Document — lưu metadata sau khi đã PUT file lên S3.
-  Future<DocumentDto> createFromS3Key(String s3Key) async {
-    final res = await _dio.post(ApiConstants.documents, data: {'s3Key': s3Key});
+  /// `fileName` = tên file gốc (vd. "sinh-hoc.pdf") để hiển thị đẹp.
+  Future<DocumentDto> createFromS3Key(String s3Key, {String? fileName}) async {
+    final res = await _dio.post(
+      ApiConstants.documents,
+      data: {
+        's3Key': s3Key,
+        if (fileName != null && fileName.isNotEmpty) 'fileName': fileName,
+      },
+    );
     _ensureOk(res);
     return DocumentDto.fromJson(Map<String, dynamic>.from(res.data as Map));
+  }
+
+  /// Nén 1 file thành zip in-memory.
+  ///
+  /// Backend ký presigned URL CHỈ cho `application/zip` (S3Service ép key
+  /// `.zip` + ContentType zip) — PUT file thô sẽ bị S3 403 vì lệch chữ ký.
+  /// Web frontend cũng nén như vậy; AI service đọc zip rồi giải nén.
+  static Uint8List zipSingleFile({
+    required String fileName,
+    required Uint8List bytes,
+  }) {
+    final archive = Archive()
+      ..addFile(ArchiveFile(fileName, bytes.length, bytes));
+    return Uint8List.fromList(ZipEncoder().encode(archive)!);
   }
 
   /// DELETE /api/Document/{id}

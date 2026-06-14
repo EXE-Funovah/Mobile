@@ -13,34 +13,31 @@ void main() {
       expect(result, 'http://192.168.1.10:5001');
     });
 
-    test('uses Android emulator local AI service in debug by default', () {
-      final result = resolveAiBaseUrl(
-        overrideBaseUrl: '',
-        isDebugMode: true,
-        isWebRuntime: false,
-      );
+    test('debug mặc định dùng AI dev deploy (đi cặp backend api-dev)', () {
+      for (final isWeb in [true, false]) {
+        final result = resolveAiBaseUrl(
+          overrideBaseUrl: '',
+          isDebugMode: true,
+          isWebRuntime: isWeb,
+        );
 
-      expect(result, 'http://10.0.2.2:5001');
+        // KHÔNG trỏ localhost/10.0.2.2 — máy dev thường không chạy AI local,
+        // sẽ gây "Connection refused" khi tạo câu hỏi.
+        expect(result, 'https://ai-dev.mascoteach.com');
+      }
     });
 
-    test('uses localhost for web debug by default', () {
-      final result = resolveAiBaseUrl(
-        overrideBaseUrl: '',
-        isDebugMode: true,
-        isWebRuntime: true,
-      );
+    test(
+      'uses production AI service outside debug when no override exists',
+      () {
+        final result = resolveAiBaseUrl(
+          overrideBaseUrl: '',
+          isDebugMode: false,
+          isWebRuntime: false,
+        );
 
-      expect(result, 'http://localhost:5001');
-    });
-
-    test('uses production AI service outside debug when no override exists', () {
-      final result = resolveAiBaseUrl(
-        overrideBaseUrl: '',
-        isDebugMode: false,
-        isWebRuntime: false,
-      );
-
-      expect(result, 'https://ai.mascoteach.com');
-    });
+        expect(result, 'https://ai.mascoteach.com');
+      },
+    );
   });
 }

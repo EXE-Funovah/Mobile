@@ -119,7 +119,6 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
       final result = await QuizGenerationService.instance
           .generateQuestionsFromFile(
             fileName: _file!.name,
-            contentType: _guessContentType(_file!.name),
             fileBytes: bytes,
             quizTitle: _quizTitle,
             numberOfQuestions: _numQuestions,
@@ -154,22 +153,6 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
       );
       setState(() => _step = _Step.pickFile);
     }
-  }
-
-  String _guessContentType(String name) {
-    final lower = name.toLowerCase();
-    if (lower.endsWith('.pdf')) return 'application/pdf';
-    if (lower.endsWith('.docx')) {
-      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    }
-    if (lower.endsWith('.doc')) return 'application/msword';
-    if (lower.endsWith('.pptx')) {
-      return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-    }
-    if (lower.endsWith('.png')) return 'image/png';
-    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
-    if (lower.endsWith('.txt')) return 'text/plain';
-    return 'application/octet-stream';
   }
 
   void _saveQuiz() async {

@@ -90,6 +90,8 @@ List<QuizQ> mapDtoToQuizQs(List<QuestionDto> dtos) {
         opts: opts,
         correct: correct,
         lv: 1, // Default to level 1 for display
+        questionId: q.id,
+        optionIds: q.options.map((o) => o.id).toList(),
       ),
     );
   }
@@ -105,16 +107,34 @@ final quizQuestionsProvider = FutureProvider.family<List<QuizQ>, int>((
   return mapDtoToQuizQs(questions);
 });
 
-/// Fetch and map questions from the first quiz of a documentId
+/// Quiz đã xuất bản (web map các status này thành badge "Đã duyệt").
+bool _isApproved(QuizDto q) =>
+    q.status == 'Teacher_Approved' || q.status == 'Published';
+
+/// Fetch câu hỏi của quiz ĐÃ DUYỆT mới nhất thuộc documentId.
+///
+/// Backend trả quiz KHÔNG sort (theo thứ tự insert) và doc có thể dính quiz
+/// nháp/rỗng từ các lần tạo lỗi — lấy `first` mù quáng sẽ chơi nhầm quiz cũ
+/// 0 câu hỏi. Giống web: chỉ chơi quiz đã duyệt, ưu tiên mới nhất.
 final documentQuestionsProvider = FutureProvider.family<List<QuizQ>, int>((
   ref,
   documentId,
 ) async {
   final quizzes = await QuizApi.instance.getQuizzesByDocument(documentId);
-  if (quizzes.isEmpty) {
-    throw Exception('Tài liệu này chưa được tạo bộ câu hỏi nào.');
+  final approved = quizzes.where((q) => !q.isDeleted && _isApproved(q)).toList()
+    ..sort(
+      (a, b) => (b.createdAt ?? DateTime(1970)).compareTo(
+        a.createdAt ?? DateTime(1970),
+      ),
+    );
+  if (approved.isEmpty) {
+    throw Exception('Tài liệu này chưa có bộ câu hỏi nào được xuất bản.');
   }
-  final quizId = quizzes.first.id;
-  final questions = await QuestionApi.instance.getQuestionsByQuiz(quizId);
-  return mapDtoToQuizQs(questions);
+  // Quiz duyệt rồi vẫn có thể rỗng (lưu câu hỏi fail giữa chừng) — bỏ qua
+  // và thử quiz duyệt kế tiếp.
+  for (final quiz in approved) {
+    final questions = await QuestionApi.instance.getQuestionsByQuiz(quiz.id);
+    if (questions.isNotEmpty) return mapDtoToQuizQs(questions);
+  }
+  throw Exception('Các bộ câu hỏi của tài liệu này đều chưa có câu hỏi.');
 });

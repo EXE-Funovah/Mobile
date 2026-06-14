@@ -3,6 +3,7 @@ class DocumentDto {
   final int id;
   final String s3Key;
   final String presignedUrl;
+  final String? fileName; // tên file gốc do backend lưu (file_name)
   final DateTime? uploadedAt;
   final bool isDeleted;
 
@@ -10,6 +11,7 @@ class DocumentDto {
     required this.id,
     required this.s3Key,
     required this.presignedUrl,
+    this.fileName,
     this.uploadedAt,
     this.isDeleted = false,
   });
@@ -20,14 +22,18 @@ class DocumentDto {
       s3Key: (json['s3Key'] ?? json['S3Key'] ?? '').toString(),
       presignedUrl: (json['presignedUrl'] ?? json['PresignedUrl'] ?? '')
           .toString(),
+      fileName: (json['fileName'] ?? json['FileName'])?.toString(),
       uploadedAt: _asDate(json['uploadedAt'] ?? json['UploadedAt']),
       isDeleted: (json['isDeleted'] ?? json['IsDeleted']) == true,
     );
   }
 
-  /// Tên file để hiển thị: ưu tiên cắt UUID prefix khỏi key (theo format mới
-  /// `{uuid}-{originalName.ext}`), fallback last segment, fallback `Tài liệu #id`.
+  /// Tên file để hiển thị: ưu tiên `fileName` backend lưu; fallback cắt
+  /// UUID prefix khỏi key; cuối cùng `Tài liệu #id` (key dạng uuid.zip).
   String get displayName {
+    if (fileName != null && fileName!.trim().isNotEmpty) {
+      return fileName!.trim();
+    }
     final last = s3Key.split('/').last;
     final stripped = last.replaceFirst(
       RegExp(

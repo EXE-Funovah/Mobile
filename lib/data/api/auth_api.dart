@@ -24,7 +24,7 @@ class AuthApi {
       data: {'email': email, 'password': password},
     );
 
-    if (res.statusCode != null && res.statusCode! >= 400) {
+    if (res.statusCode != null && res.statusCode! >= 300) {
       throw _extractError(res);
     }
 
@@ -47,7 +47,7 @@ class AuthApi {
       data: {'credential': idToken},
     );
 
-    if (res.statusCode != null && res.statusCode! >= 400) {
+    if (res.statusCode != null && res.statusCode! >= 300) {
       throw _extractError(res);
     }
 
@@ -78,7 +78,7 @@ class AuthApi {
         'role': role,
       },
     );
-    if (res.statusCode != null && res.statusCode! >= 400) {
+    if (res.statusCode != null && res.statusCode! >= 300) {
       throw _extractError(res);
     }
   }
@@ -89,17 +89,25 @@ class AuthApi {
       ApiConstants.authForgotPassword,
       data: {'email': email},
     );
-    if (res.statusCode != null && res.statusCode! >= 400) {
+    if (res.statusCode != null && res.statusCode! >= 300) {
       throw _extractError(res);
     }
   }
 
+  /// JWT có dạng `xxx.yyy.zzz` (base64url) — không khoảng trắng, không HTML.
+  /// Chặn case server trả trang HTML (301 redirect…) bị lưu nhầm làm token.
+  static bool _looksLikeJwt(String s) =>
+      RegExp(r'^[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+$')
+          .hasMatch(s.trim());
+
   String? _extractToken(dynamic data) {
-    if (data is String) return data;
+    if (data is String) {
+      return _looksLikeJwt(data) ? data.trim() : null;
+    }
     if (data is Map) {
       for (final key in ['token', 'accessToken', 'Token', 'AccessToken']) {
         final v = data[key];
-        if (v is String && v.isNotEmpty) return v;
+        if (v is String && _looksLikeJwt(v)) return v.trim();
       }
       // có khi token bọc trong { data: { token: ... } }
       if (data['data'] is Map) return _extractToken(data['data']);

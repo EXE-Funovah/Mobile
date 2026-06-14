@@ -8,13 +8,17 @@ class ApiConstants {
 
   /// Base URL của Backend.
   ///
-  /// Production: https://api.mascoteach.com (đã deploy, swagger ở /swagger)
+  /// Dev (đang dùng):    http://api-dev.mascoteach.com (swagger ở /swagger)
+  /// Production:         https://api.mascoteach.com
   ///
   /// Nếu muốn test với backend chạy local, đổi sang một trong các URL sau:
   /// - Android emulator:  'https://10.0.2.2:7108'   (10.0.2.2 = host machine)
   /// - Web (Chrome):      'https://localhost:7108'
   /// - Thiết bị thật:     'https://192.168.x.x:7108' (IP LAN máy host)
-  static const String baseUrl = 'https://api.mascoteach.com';
+  // LƯU Ý: phải dùng httpS — server dev (openresty) trả 301 redirect nếu gọi
+  // http thường, và Dio không tự follow redirect cho POST → login nhận về
+  // trang HTML 301 thay vì token.
+  static const String baseUrl = 'https://api-dev.mascoteach.com';
   static const String _aiBaseUrlOverride = String.fromEnvironment(
     'AI_BASE_URL',
     defaultValue: '',
@@ -79,6 +83,13 @@ class ApiConstants {
 
   // ============ Session Participant ============
   static const String participants = '/api/SessionParticipant';
+
+  // ============ Gamification ============
+  // Lưu ý: BE chỉ expose /me (không có /{userId}) và KHÔNG có endpoint
+  // subscription upgrade — xem .codex/skills/mascoteach-gamification.md.
+  static const String userStatsMe = '/api/UserStats/me';
+  static const String quizAttempts = '/api/QuizAttempt';
+  static const String quizAttemptsMe = '/api/QuizAttempt/me';
 
   // ============ Storage keys ============
   static const String tokenKey = 'mascoteach_token';

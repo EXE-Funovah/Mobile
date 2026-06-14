@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../core/theme/theme_tokens.dart';
+import '../../../data/models/quiz_attempt.dart';
 import '../../shared/widgets/pill.dart';
 import '../data/quiz_data.dart';
 import '../providers/quizzes_provider.dart';
+import '../providers/user_stats_provider.dart';
 
 class QuizPlayPage extends ConsumerStatefulWidget {
   final int? quizId;
@@ -21,18 +23,59 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
   int _i = 0;
   int? _picked;
   int _score = 0;
+  final _watch = Stopwatch()..start();
+  bool _submitting = false;
+  // Lưu lựa chọn từng câu để gửi backend chấm (server-side scoring)
+  final List<QuizAnswerSubmit> _answers = [];
   static const _letters = ['A', 'B', 'C', 'D'];
+
+  @override
+  void dispose() {
+    _watch.stop();
+    super.dispose();
+  }
 
   void _pick(int idx, List<QuizQ> qs) {
     if (_picked != null) return;
+    final q = qs[_i.clamp(0, qs.length - 1)];
     setState(() {
       _picked = idx;
-      if (idx == qs[_i.clamp(0, qs.length - 1)].correct) _score++;
+      if (idx == q.correct) _score++;
     });
+    // Ghi lại answer nếu có id thật từ API
+    if (q.questionId > 0 && idx < q.optionIds.length) {
+      _answers.add(
+        QuizAnswerSubmit(
+          questionId: q.questionId,
+          optionId: q.optionIds[idx],
+        ),
+      );
+    }
   }
 
-  void _next(List<QuizQ> qs) {
+  Future<void> _next(List<QuizQ> qs) async {
     if (_i >= qs.length - 1) {
+      if (_submitting) return;
+      _submitting = true;
+      _watch.stop();
+
+      // Submit answers để backend tự chấm + cộng XP/streak.
+      // Cần đủ answers cho mọi câu (BE validate count khớp).
+      if (widget.quizId != null && _answers.length == qs.length) {
+        try {
+          await ref.read(submitQuizAttemptProvider)(
+            QuizAttemptSubmitRequest(
+              quizId: widget.quizId!,
+              durationSeconds: _watch.elapsed.inSeconds,
+              answers: List.of(_answers),
+            ),
+          );
+        } catch (_) {
+          // Không chặn kết quả nếu submit lỗi (offline…) — XP mất lần này.
+        }
+      }
+
+      if (!mounted) return;
       context.go('/student/quiz/result?score=$_score&total=${qs.length}');
     } else {
       setState(() {

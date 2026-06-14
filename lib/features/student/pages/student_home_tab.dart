@@ -7,6 +7,8 @@ import '../../../core/theme/theme_tokens.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../quiz/providers/documents_provider.dart';
 import '../../quiz/providers/quizzes_provider.dart';
+import '../../quiz/providers/user_stats_provider.dart';
+import '../../student/providers/settings_provider.dart';
 import '../../shared/widgets/ring.dart';
 import '../../shared/widgets/section_head.dart';
 import '../../shared/widgets/themed_card.dart';
@@ -19,12 +21,22 @@ class StudentHomeTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ref.watch(themeProvider);
     final name = ref.watch(authProvider).displayName ?? 'Bạn';
-    // TODO(gamification): thay các giá trị 0 bằng dữ liệu từ /api/UserStats/me
-    // khi backend hoàn tất (xem PROGRESS.md sprint Gamification).
-    const streak = 0;
-    const xp = 0;
-    const goalMinutesDone = 0;
-    const goalMinutesTarget = 25;
+    final stats = ref.watch(userStatsProvider).valueOrNull;
+    final streak = stats?.effectiveStreak ?? 0;
+    final xp = stats?.xp ?? 0;
+    // Mục tiêu hôm nay = tổng phút của các attempt trong ngày
+    final today = DateTime.now();
+    final goalMinutesDone = (ref.watch(weekAttemptsProvider).valueOrNull ?? [])
+            .where((a) {
+              final c = a.completedAt?.toLocal();
+              return c != null &&
+                  c.year == today.year &&
+                  c.month == today.month &&
+                  c.day == today.day;
+            })
+            .fold<int>(0, (sum, a) => sum + a.durationSeconds) ~/
+        60;
+    final goalMinutesTarget = ref.watch(settingsProvider).dailyGoalMinutes;
     final goalPct = goalMinutesTarget == 0
         ? 0.0
         : (goalMinutesDone / goalMinutesTarget).clamp(0.0, 1.0);

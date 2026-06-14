@@ -9,6 +9,7 @@ import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/mascot_avatar.dart';
 import '../../shared/widgets/or_divider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/session_refresh.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -24,6 +25,28 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _obscure = true;
 
   @override
+  void initState() {
+    super.initState();
+    // Bị đá về login do token hết hạn → báo cho user biết lý do (giống web).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (ref.read(authProvider).error == sessionExpiredMessage) {
+        ref.read(authProvider.notifier).clearError();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(sessionExpiredMessage),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _emailCtl.dispose();
     _passCtl.dispose();
@@ -36,7 +59,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         .read(authProvider.notifier)
         .login(_emailCtl.text.trim(), _passCtl.text);
     if (!mounted) return;
-    if (!ok) {
+    if (ok) {
+      // Xoá state cũ để load lại tài liệu/quiz/stats của user vừa login
+      resetUserScopedProviders(ref);
+    } else {
       final err = ref.read(authProvider).error ?? 'Đăng nhập thất bại';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
