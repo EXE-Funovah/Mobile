@@ -113,6 +113,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         TextFormField(
                           controller: _name,
                           textInputAction: TextInputAction.next,
+                          style: const TextStyle(
+                            color: AppColors.ink,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
                           decoration: const InputDecoration(
                             labelText: 'Họ và tên',
                             hintText: 'Nguyễn Văn A',
@@ -130,6 +135,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                           controller: _email,
                           keyboardType: TextInputType.emailAddress,
                           textInputAction: TextInputAction.next,
+                          style: const TextStyle(
+                            color: AppColors.ink,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
                           decoration: const InputDecoration(
                             labelText: 'Email',
                             hintText: 'ten@example.com',
@@ -149,6 +159,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         TextFormField(
                           controller: _pass,
                           obscureText: _obscure,
+                          style: const TextStyle(
+                            color: AppColors.ink,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
                           decoration: InputDecoration(
                             labelText: 'Mật khẩu',
                             hintText: 'Tối thiểu 6 ký tự',

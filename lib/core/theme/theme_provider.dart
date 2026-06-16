@@ -6,8 +6,8 @@ import 'theme_tokens.dart';
 
 /// Provider chứa token hiện tại + có thể switch giữa Clean và GameShow.
 class ThemeController extends StateNotifier<AppTokens> {
-  // Default = Game-show (dark) theo design mockup. User có thể đổi trong Profile.
-  ThemeController() : super(AppTokens.gameShow) {
+  // Default = Clean (sáng). User chủ động đổi sang Game-show (tối) trong Profile.
+  ThemeController() : super(AppTokens.clean) {
     _load();
   }
 
@@ -16,8 +16,8 @@ class ThemeController extends StateNotifier<AppTokens> {
   Future<void> _load() async {
     final sp = await SharedPreferences.getInstance();
     final saved = sp.getString(_prefKey);
-    if (saved == 'clean') state = AppTokens.clean;
-    // 'gameShow' hoặc null → giữ default gameShow
+    if (saved == 'gameShow') state = AppTokens.gameShow;
+    // 'clean' hoặc null → giữ default clean (sáng)
   }
 
   Future<void> toggle() async {
@@ -73,10 +73,17 @@ ThemeData buildThemeData(AppTokens t) {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: t.surface,
+      // surface2 hơi khác nền card trắng → thấy rõ khung ô nhập
+      fillColor: t.surface2,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       hintStyle: TextStyle(color: t.inkMuted),
-      labelStyle: TextStyle(color: t.ink2, fontWeight: FontWeight.w500),
+      // Chữ gõ vào: màu ink (đậm trên nền sáng / trắng trên nền tối) → luôn rõ
+      // Label "Email"/"Mật khẩu": dùng ink, đậm hơn cho dễ đọc, không bị mờ
+      labelStyle: TextStyle(color: t.ink2, fontWeight: FontWeight.w600),
+      floatingLabelStyle: TextStyle(
+        color: t.primary,
+        fontWeight: FontWeight.w700,
+      ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(color: t.line, width: 1.5),

@@ -141,6 +141,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                     controller: _emailCtl,
                                     keyboardType: TextInputType.emailAddress,
                                     textInputAction: TextInputAction.next,
+                                    style: const TextStyle(
+                                      color: AppColors.ink,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15,
+                                    ),
                                     decoration: const InputDecoration(
                                       labelText: 'Email',
                                       hintText: 'ten@example.com',
@@ -164,6 +169,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                     obscureText: _obscure,
                                     textInputAction: TextInputAction.done,
                                     onFieldSubmitted: (_) => _onSubmit(),
+                                    style: const TextStyle(
+                                      color: AppColors.ink,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15,
+                                    ),
                                     decoration: InputDecoration(
                                       labelText: 'Mật khẩu',
                                       prefixIcon: const Icon(

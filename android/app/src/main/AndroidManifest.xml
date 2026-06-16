@@ -36,6 +36,12 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Tắt Impeller: trên Android emulator (GPU phần mềm) Impeller hay
+             render màn đen + lỗi EGL. Ép dùng Skia/GL cho ổn định khi test
+             trên emulator. Máy thật có thể bật lại nếu muốn. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

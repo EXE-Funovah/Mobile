@@ -14,7 +14,23 @@ import '../../shared/widgets/themed_card.dart';
 import '../providers/documents_provider.dart';
 import 'quiz_preview_page.dart';
 
-enum _UploadStatus { idle, processing, error }
+enum _UploadStatus { idle, config, processing, error }
+
+/// Độ khó hiển thị theo nhãn DOK của web, map sang giá trị AiApi.
+const _difficultyOptions = [
+  (label: 'Nhận biết', value: 'Dễ'),
+  (label: 'Thông hiểu', value: 'Vừa'),
+  (label: 'Nâng cao', value: 'Khó'),
+];
+
+/// Số câu hỏi — "Tự động" gửi 5 (giống web: questionCount 0 → 5).
+const _countOptions = [
+  (label: 'Tự động', value: 5),
+  (label: '10', value: 10),
+  (label: '15', value: 15),
+  (label: '20', value: 20),
+  (label: '30', value: 30),
+];
 
 class UploadPage extends ConsumerStatefulWidget {
   const UploadPage({super.key});
@@ -30,6 +46,18 @@ class _UploadPageState extends ConsumerState<UploadPage> {
   int? _fileSize;
   String? _errorMsg;
 
+  // Cấu hình bộ câu hỏi (chọn ở bước config trước khi tạo)
+  PlatformFile? _pickedFile;
+  final _titleCtl = TextEditingController();
+  String _difficulty = 'Vừa';
+  int _numQuestions = 5;
+
+  @override
+  void dispose() {
+    _titleCtl.dispose();
+    super.dispose();
+  }
+
   final _steps = const [
     (icon: Icons.scanner, t: 'Tải tệp lên', d: 'Đang gửi tới máy chủ'),
     (icon: Icons.description, t: 'Lưu metadata', d: 'Ghi nhận tài liệu'),
@@ -40,7 +68,7 @@ class _UploadPageState extends ConsumerState<UploadPage> {
     ),
   ];
 
-  Future<void> _start() async {
+  Future<void> _pickFile() async {
     final picked = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const [
@@ -58,9 +86,33 @@ class _UploadPageState extends ConsumerState<UploadPage> {
     final file = picked.files.first;
     if (!mounted) return;
 
+    // Sau khi chọn file → sang màn cấu hình (chọn độ khó, số câu) như web,
+    // chưa upload/tạo gì cả.
     setState(() {
+      _pickedFile = file;
       _fileName = file.name;
       _fileSize = file.size;
+      _titleCtl.text = 'Trắc nghiệm: ${_stripExt(file.name)}';
+      _difficulty = 'Vừa';
+      _numQuestions = 5;
+      _errorMsg = null;
+      _status = _UploadStatus.config;
+    });
+  }
+
+  String _stripExt(String name) {
+    final dot = name.lastIndexOf('.');
+    return dot > 0 ? name.substring(0, dot) : name;
+  }
+
+  Future<void> _generate() async {
+    final file = _pickedFile;
+    if (file == null) return;
+    final quizTitle = _titleCtl.text.trim().isEmpty
+        ? 'Trắc nghiệm: ${_stripExt(file.name)}'
+        : _titleCtl.text.trim();
+
+    setState(() {
       _step = 0;
       _status = _UploadStatus.processing;
       _errorMsg = null;
@@ -104,15 +156,14 @@ class _UploadPageState extends ConsumerState<UploadPage> {
       if (!mounted) return;
       setState(() => _step = 2);
 
-      // Step 3 — AI soạn câu hỏi. CHƯA lưu — giáo viên xem trước rồi mới
-      // bấm Xuất bản (giống web: quiz chỉ tạo khi publish, status Teacher_Approved).
-      final quizTitle = 'Trắc nghiệm: ${created.displayName}';
+      // Step 3 — AI soạn câu hỏi với cấu hình user chọn. CHƯA lưu — xem trước
+      // rồi mới Xuất bản (giống web: quiz chỉ tạo khi publish, Teacher_Approved).
       final questions = await AiApi.instance.generateQuestions(
         fileUrl: created.presignedUrl,
         documentId: created.id,
         quizTitle: quizTitle,
-        numberOfQuestions: 5,
-        difficulty: 'Vừa',
+        numberOfQuestions: _numQuestions,
+        difficulty: _difficulty,
       );
       if (!mounted) return;
       context.pushReplacement(
@@ -161,11 +212,227 @@ class _UploadPageState extends ConsumerState<UploadPage> {
     switch (_status) {
       case _UploadStatus.idle:
         return _idleView(t);
+      case _UploadStatus.config:
+        return _configView(t);
       case _UploadStatus.processing:
         return _processingView(t);
       case _UploadStatus.error:
         return _errorView(t);
     }
+  }
+
+  /// Màn cấu hình bộ câu hỏi — chọn độ khó (DOK), số câu, tên (giống web).
+  Widget _configView(AppTokens t) {
+    return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Thẻ thông tin file đã chọn
+            ThemedCard(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: t.primarySoft,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.description, color: t.primary, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _fileName ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: t.ink,
+                          ),
+                        ),
+                        Text(
+                          _fileSize != null
+                              ? '${(_fileSize! / 1024).toStringAsFixed(0)} KB'
+                              : '—',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: t.inkMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => setState(() {
+                      _status = _UploadStatus.idle;
+                      _pickedFile = null;
+                    }),
+                    child: Icon(Icons.close, size: 20, color: t.inkMuted),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // Tên bộ câu hỏi
+            _label(t, 'Tên bộ câu hỏi'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _titleCtl,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: t.ink,
+              ),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: t.surface,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: t.line),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: t.line),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // Độ sâu kiến thức (DOK)
+            _label(t, 'Độ sâu kiến thức (DOK)'),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: _difficultyOptions.map((o) {
+                final sel = _difficulty == o.value;
+                return _choiceChip(
+                  t,
+                  o.label,
+                  sel,
+                  () => setState(() => _difficulty = o.value),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 18),
+
+            // Số lượng câu hỏi
+            _label(t, 'Số lượng câu hỏi'),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: _countOptions.map((o) {
+                final sel = _numQuestions == o.value;
+                return _choiceChip(
+                  t,
+                  o.label,
+                  sel,
+                  () => setState(() => _numQuestions = o.value),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 28),
+
+            // Nút tạo
+            SizedBox(
+              height: 54,
+              child: ElevatedButton.icon(
+                onPressed: _generate,
+                icon: const Icon(Icons.auto_awesome, color: Colors.white),
+                label: const Text('Tạo bộ câu hỏi'),
+                style:
+                    ElevatedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.transparent,
+                      shadowColor: t.fabRing,
+                      elevation: 6,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ).copyWith(
+                      backgroundBuilder: (ctx, st, child) => Ink(
+                        decoration: BoxDecoration(
+                          gradient: t.fabGradient,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: child,
+                      ),
+                      textStyle: WidgetStateProperty.all(
+                        const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15.5,
+                        ),
+                      ),
+                    ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'AI có thể mắc lỗi. Bạn sẽ xem lại bộ câu hỏi trước khi xuất bản.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: t.inkMuted,
+              ),
+            ),
+          ],
+        )
+        .animate()
+        .fadeIn(duration: 250.ms)
+        .moveY(begin: 12, end: 0, curve: Curves.easeOut, duration: 300.ms);
+  }
+
+  Widget _label(AppTokens t, String text) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 13.5,
+        fontWeight: FontWeight.w800,
+        color: t.ink,
+      ),
+    );
+  }
+
+  Widget _choiceChip(
+    AppTokens t,
+    String label,
+    bool selected,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+        decoration: BoxDecoration(
+          color: selected ? t.primary : t.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: selected ? t.primary : t.line),
+          boxShadow: selected ? t.cardShadow : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            color: selected ? Colors.white : t.ink2,
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _errorView(AppTokens t) {
@@ -198,10 +465,16 @@ class _UploadPageState extends ConsumerState<UploadPage> {
           ),
           const SizedBox(height: 20),
           OutlinedButton.icon(
+            // Còn file đã chọn → quay lại màn cấu hình để thử tạo lại
+            // (vd. AI service vừa sập), khỏi phải chọn file + cấu hình lại.
             onPressed: () => setState(() {
-              _status = _UploadStatus.idle;
               _errorMsg = null;
-              _fileName = null;
+              if (_pickedFile != null) {
+                _status = _UploadStatus.config;
+              } else {
+                _status = _UploadStatus.idle;
+                _fileName = null;
+              }
             }),
             icon: const Icon(Icons.refresh),
             label: const Text('Thử lại'),
@@ -217,7 +490,7 @@ class _UploadPageState extends ConsumerState<UploadPage> {
           children: [
             // Drop zone
             GestureDetector(
-              onTap: _start,
+              onTap: _pickFile,
               child: DottedBorderBox(
                 color: t.line,
                 radius: t.cardRadius,
@@ -343,7 +616,7 @@ class _UploadPageState extends ConsumerState<UploadPage> {
 
   Widget _quickBtn(AppTokens t, IconData icon, String title, String desc) {
     return GestureDetector(
-      onTap: _start,
+      onTap: _pickFile,
       child: Container(
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(

@@ -20,5 +20,5 @@ String resolveAiBaseUrl({
     return 'https://ai-dev.mascoteach.com';
   }
 
-  return 'https://ai.mascoteach.com';
+  return 'https://ai-dev.mascoteach.com';
 }

@@ -117,6 +117,42 @@ class _DocDetailView extends ConsumerWidget {
     }
   }
 
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xóa tài liệu?'),
+        content: Text(
+          '${doc.displayName}\n\nTài liệu và các bộ câu hỏi của nó sẽ bị xóa.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    await ref.read(documentsProvider.notifier).remove(doc.id);
+    if (!context.mounted) return;
+    final err = ref.read(documentsProvider).error;
+    if (err != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Xóa thất bại: $err')));
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Đã xóa tài liệu')));
+    context.pop();
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ref.watch(themeProvider);
@@ -135,6 +171,29 @@ class _DocDetailView extends ConsumerWidget {
               title: doc.displayName,
               subtitle: 'Đã tải lên · $dateStr',
               onBack: () => context.pop(),
+              trailing: Material(
+                color: t.surface,
+                borderRadius: BorderRadius.circular(13),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(13),
+                  onTap: () => _confirmDelete(context, ref),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(13),
+                      border: t.cardBorder,
+                      boxShadow: t.cardShadow,
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                      Icons.delete_outline,
+                      size: 19,
+                      color: t.danger,
+                    ),
+                  ),
+                ),
+              ),
             ),
             Expanded(
               child: ListView(
