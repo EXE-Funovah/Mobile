@@ -18,10 +18,7 @@ class SplashPage extends StatelessWidget {
             Positioned(
               top: -60,
               right: -40,
-              child: DecorativeBlob(
-                color: AppColors.brandLight,
-                size: 280,
-              ),
+              child: DecorativeBlob(color: AppColors.brandLight, size: 280),
             ),
             Positioned(
               bottom: -80,
@@ -37,40 +34,41 @@ class SplashPage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   MascotAvatar(
-                    size: 140,
-                    bgColor: Colors.white.withValues(alpha: 0.15),
-                    showGlow: true,
-                  )
+                        size: 140,
+                        bgColor: Colors.white.withValues(alpha: 0.15),
+                        showGlow: true,
+                      )
                       .animate()
                       .scale(
-                          duration: 700.ms,
-                          curve: Curves.elasticOut,
-                          begin: const Offset(0.5, 0.5),
-                          end: const Offset(1, 1))
+                        duration: 700.ms,
+                        curve: Curves.elasticOut,
+                        begin: const Offset(0.5, 0.5),
+                        end: const Offset(1, 1),
+                      )
                       .fadeIn(duration: 400.ms),
                   const SizedBox(height: 28),
                   const Text(
-                    'Mascoteach',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 36,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.8,
-                    ),
-                  )
+                        'Mascoteach',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 36,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.8,
+                        ),
+                      )
                       .animate()
                       .fadeIn(delay: 300.ms, duration: 500.ms)
                       .moveY(begin: 12, end: 0),
                   const SizedBox(height: 6),
                   Text(
-                    'Học vui — Dạy hay',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 2,
-                    ),
-                  )
+                        'Học vui — Dạy hay',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 2,
+                        ),
+                      )
                       .animate()
                       .fadeIn(delay: 600.ms, duration: 500.ms)
                       .moveY(begin: 8, end: 0),

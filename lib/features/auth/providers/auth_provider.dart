@@ -1,7 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import '../../../core/constants/api_constants.dart';
+import '../../../core/utils/jwt_utils.dart';
 import '../../../data/api/auth_api.dart';
+import '../../../data/api/dio_client.dart';
 import '../../../data/models/user.dart';
 import '../../../data/storage/token_storage.dart';
+
+/// Giống thông báo web hiển thị khi token bị 401 (api.js).
+const sessionExpiredMessage =
+    'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.';
 
 class AuthState {
   final bool loading;
@@ -40,21 +48,58 @@ class AuthState {
 
 class AuthController extends StateNotifier<AuthState> {
   AuthController() : super(const AuthState()) {
+    // DioClient báo về khi token bị 401/hết hạn → force logout để router
+    // đá về /login (web làm tương tự: clearAuth → redirect /signin).
+    DioClient.onSessionExpired = sessionExpired;
     _bootstrap();
   }
 
   Future<void> _bootstrap() async {
     final token = await TokenStorage.instance.getToken();
+    final name = await TokenStorage.instance.getDisplayName();
+    final roleStr = await TokenStorage.instance.getRole();
+
     if (token != null && token.isNotEmpty) {
-      state = state.copyWith(token: token);
+      // JWT backend sống 60' và không có refresh endpoint — token cũ trong
+      // storage gần như chắc chắn đã chết khi mở lại app. Khôi phục nó chỉ
+      // tạo phiên "ma": UI tưởng đăng nhập nhưng mọi API đều 401.
+      if (isJwtExpired(token)) {
+        await TokenStorage.instance.clear();
+        return;
+      }
+      state = state.copyWith(
+        token: token,
+        displayName: name,
+        role: roleStr != null ? roleFromString(roleStr) : UserRole.unknown,
+      );
     }
+  }
+
+  /// Token bị backend từ chối (401) hoặc hết hạn giữa phiên.
+  void sessionExpired() {
+    if (!mounted || !state.isAuthenticated) return;
+    state = const AuthState(error: sessionExpiredMessage);
+  }
+
+  /// Xoá error sau khi đã hiển thị (vd. snackbar ở LoginPage).
+  void clearError() {
+    state = state.copyWith(clearError: true);
   }
 
   Future<bool> login(String email, String password) async {
     state = state.copyWith(loading: true, clearError: true);
     try {
-      final res = await AuthApi.instance.login(email: email, password: password);
+      final res = await AuthApi.instance.login(
+        email: email,
+        password: password,
+      );
       await TokenStorage.instance.setToken(res.token);
+      if (res.fullName != null) {
+        await TokenStorage.instance.setDisplayName(res.fullName!);
+      }
+      if (res.role != null) {
+        await TokenStorage.instance.setRole(res.role!);
+      }
       state = AuthState(
         token: res.token,
         role: roleFromString(res.role),
@@ -89,7 +134,62 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  /// Đăng nhập bằng Google. Trả về true nếu thành công, false nếu user hủy hoặc lỗi.
+  Future<bool> googleSignIn() async {
+    state = state.copyWith(loading: true, clearError: true);
+    try {
+      // serverClientId = Web Client ID của BE; cần thiết để idToken có audience đúng.
+      final google = GoogleSignIn(
+        scopes: const ['email', 'profile', 'openid'],
+        serverClientId: ApiConstants.googleWebClientId,
+      );
+
+      // Sign out trước để luôn hiện account picker thay vì auto chọn account cũ
+      await google.signOut();
+      final account = await google.signIn();
+      if (account == null) {
+        // user cancel
+        state = state.copyWith(loading: false);
+        return false;
+      }
+
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw Exception(
+          'Không lấy được Google idToken. Kiểm tra cấu hình OAuth Android.',
+        );
+      }
+
+      final res = await AuthApi.instance.googleLogin(idToken: idToken);
+      await TokenStorage.instance.setToken(res.token);
+      if (res.fullName != null) {
+        await TokenStorage.instance.setDisplayName(res.fullName!);
+      }
+      if (res.role != null) {
+        await TokenStorage.instance.setRole(res.role!);
+      }
+      state = AuthState(
+        token: res.token,
+        role: roleFromString(res.role),
+        displayName: res.fullName,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(loading: false, error: _msg(e));
+      return false;
+    }
+  }
+
   Future<void> logout() async {
+    // Sign out khỏi Google luôn để lần sau user có thể chọn account khác
+    try {
+      await GoogleSignIn(
+        serverClientId: ApiConstants.googleWebClientId,
+      ).signOut();
+    } catch (_) {
+      // Bỏ qua lỗi nếu Google chưa init
+    }
     await TokenStorage.instance.clear();
     state = const AuthState();
   }
@@ -100,5 +200,6 @@ class AuthController extends StateNotifier<AuthState> {
   }
 }
 
-final authProvider =
-    StateNotifierProvider<AuthController, AuthState>((ref) => AuthController());
+final authProvider = StateNotifierProvider<AuthController, AuthState>(
+  (ref) => AuthController(),
+);

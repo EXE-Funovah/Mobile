@@ -1,7 +1,7 @@
 name: mascoteach_mobile
 description: "Mascoteach mobile app for students and teachers"
 publish_to: 'none'
-version: 0.1.0+1
+version: 1.0.0+1
 
 environment:
   sdk: ^3.12.0
@@ -21,7 +21,7 @@ dependencies:
   dio: ^5.7.0
 
   # Storage
-  flutter_secure_storage: ^9.2.2
+  flutter_secure_storage: 10.3.1
   shared_preferences: ^2.3.2
 
   # Utils
@@ -34,12 +34,41 @@ dependencies:
   # File picker (document upload)
   file_picker: ^8.1.2
 
+  # Open external URLs (S3 presigned for document preview)
+  url_launcher: ^6.3.0
+
+  # Google Sign-In (gửi idToken lên /api/Auth/google-login)
+  google_sign_in: ^6.2.1
+
+  # App version cho trang Cài đặt
+  package_info_plus: ^8.0.2
+
+  # Nén file thành .zip trước khi upload (backend ký presigned URL cho application/zip)
+  archive: ^3.6.1
+  flutter_webrtc: ^1.4.1
+  permission_handler: ^12.0.3
+
+dependency_overrides:
+  ffi: ^2.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # Generate launcher icon từ mascot-head.png cho mọi mipmap size
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/
+
+# Cấu hình launcher icon (chạy: dart run flutter_launcher_icons)
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/images/mascot-head.png"
+  # Adaptive icon cho Android 8.0+: nền xanh dương + ảnh foreground
+  adaptive_icon_background: "#1B3A6B"
+  adaptive_icon_foreground: "assets/images/mascot-head.png"
+  min_sdk_android: 21

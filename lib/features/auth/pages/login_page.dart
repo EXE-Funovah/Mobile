@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../shared/widgets/decorative_blob.dart';
 import '../../shared/widgets/google_button.dart';
@@ -9,6 +10,7 @@ import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/mascot_avatar.dart';
 import '../../shared/widgets/or_divider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/session_refresh.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -24,6 +26,28 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _obscure = true;
 
   @override
+  void initState() {
+    super.initState();
+    // Bị đá về login do token hết hạn → báo cho user biết lý do (giống web).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (ref.read(authProvider).error == sessionExpiredMessage) {
+        ref.read(authProvider.notifier).clearError();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(sessionExpiredMessage),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _emailCtl.dispose();
     _passCtl.dispose();
@@ -36,26 +60,44 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         .read(authProvider.notifier)
         .login(_emailCtl.text.trim(), _passCtl.text);
     if (!mounted) return;
-    if (!ok) {
+    if (ok) {
+      // Xoá state cũ để load lại tài liệu/quiz/stats của user vừa login
+      resetUserScopedProviders(ref);
+    } else {
       final err = ref.read(authProvider).error ?? 'Đăng nhập thất bại';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(err),
           backgroundColor: AppColors.danger,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     }
   }
 
-  void _googleSignIn() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🚧 Đăng nhập Google sẽ sớm có mặt'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  Future<void> _googleSignIn() async {
+    final ok = await ref.read(authProvider.notifier).googleSignIn();
+    if (!mounted) return;
+    if (!ok) {
+      final err = ref.read(authProvider).error;
+      if (err != null && err.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(err),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+      // nếu err null nghĩa là user cancel — không show gì
+    }
+    // Khi thành công router refreshListenable sẽ tự redirect
   }
 
   @override
@@ -77,94 +119,120 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 offset: const Offset(0, -36),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Container(
-                    padding: const EdgeInsets.all(22),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: AppShadows.hover,
-                    ),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          GoogleButton(onPressed: _googleSignIn),
-                          const SizedBox(height: 16),
-                          const OrDivider(label: 'HOẶC ĐĂNG NHẬP VỚI EMAIL'),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _emailCtl,
-                            keyboardType: TextInputType.emailAddress,
-                            textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(
-                              labelText: 'Email',
-                              hintText: 'ten@example.com',
-                              prefixIcon: Icon(Icons.mail_outline,
-                                  color: AppColors.inkMuted),
+                  child:
+                      Container(
+                            padding: const EdgeInsets.all(22),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(28),
+                              boxShadow: AppShadows.hover,
                             ),
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) {
-                                return 'Nhập email';
-                              }
-                              if (!v.contains('@')) return 'Email không hợp lệ';
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _passCtl,
-                            obscureText: _obscure,
-                            textInputAction: TextInputAction.done,
-                            onFieldSubmitted: (_) => _onSubmit(),
-                            decoration: InputDecoration(
-                              labelText: 'Mật khẩu',
-                              prefixIcon: const Icon(Icons.lock_outline,
-                                  color: AppColors.inkMuted),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscure
-                                      ? Icons.visibility_outlined
-                                      : Icons.visibility_off_outlined,
-                                  color: AppColors.inkMuted,
-                                ),
-                                onPressed: () =>
-                                    setState(() => _obscure = !_obscure),
+                            child: Form(
+                              key: _formKey,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (ApiConstants.googleSignInEnabled) ...[
+                                    GoogleButton(onPressed: _googleSignIn),
+                                    const SizedBox(height: 16),
+                                    const OrDivider(
+                                      label: 'HOẶC ĐĂNG NHẬP VỚI EMAIL',
+                                    ),
+                                    const SizedBox(height: 16),
+                                  ],
+                                  TextFormField(
+                                    controller: _emailCtl,
+                                    keyboardType: TextInputType.emailAddress,
+                                    textInputAction: TextInputAction.next,
+                                    style: const TextStyle(
+                                      color: AppColors.ink,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15,
+                                    ),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Email',
+                                      hintText: 'ten@example.com',
+                                      prefixIcon: Icon(
+                                        Icons.mail_outline,
+                                        color: AppColors.inkMuted,
+                                      ),
+                                    ),
+                                    validator: (v) {
+                                      if (v == null || v.trim().isEmpty) {
+                                        return 'Nhập email';
+                                      }
+                                      if (!v.contains('@')) {
+                                        return 'Email không hợp lệ';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 12),
+                                  TextFormField(
+                                    controller: _passCtl,
+                                    obscureText: _obscure,
+                                    textInputAction: TextInputAction.done,
+                                    onFieldSubmitted: (_) => _onSubmit(),
+                                    style: const TextStyle(
+                                      color: AppColors.ink,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15,
+                                    ),
+                                    decoration: InputDecoration(
+                                      labelText: 'Mật khẩu',
+                                      prefixIcon: const Icon(
+                                        Icons.lock_outline,
+                                        color: AppColors.inkMuted,
+                                      ),
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          _obscure
+                                              ? Icons.visibility_outlined
+                                              : Icons.visibility_off_outlined,
+                                          color: AppColors.inkMuted,
+                                        ),
+                                        onPressed: () => setState(
+                                          () => _obscure = !_obscure,
+                                        ),
+                                      ),
+                                    ),
+                                    validator: (v) =>
+                                        (v == null || v.length < 6)
+                                        ? 'Tối thiểu 6 ký tự'
+                                        : null,
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: () {},
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 0,
+                                          vertical: 8,
+                                        ),
+                                        minimumSize: const Size(0, 36),
+                                      ),
+                                      child: const Text('Quên mật khẩu?'),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  GradientButton(
+                                    label: 'Đăng nhập',
+                                    loading: auth.loading,
+                                    onPressed: _onSubmit,
+                                  ),
+                                ],
                               ),
                             ),
-                            validator: (v) => (v == null || v.length < 6)
-                                ? 'Tối thiểu 6 ký tự'
-                                : null,
+                          )
+                          .animate()
+                          .fadeIn(delay: 200.ms, duration: 500.ms)
+                          .moveY(
+                            begin: 24,
+                            end: 0,
+                            curve: Curves.easeOutCubic,
+                            duration: 500.ms,
                           ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {},
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 0, vertical: 8),
-                                minimumSize: const Size(0, 36),
-                              ),
-                              child: const Text('Quên mật khẩu?'),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          GradientButton(
-                            label: 'Đăng nhập',
-                            loading: auth.loading,
-                            onPressed: _onSubmit,
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                      .animate()
-                      .fadeIn(delay: 200.ms, duration: 500.ms)
-                      .moveY(
-                          begin: 24,
-                          end: 0,
-                          curve: Curves.easeOutCubic,
-                          duration: 500.ms),
                 ),
               ),
 
@@ -174,8 +242,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text('Chưa có tài khoản? ',
-                        style: TextStyle(color: AppColors.inkSecondary)),
+                    const Text(
+                      'Chưa có tài khoản? ',
+                      style: TextStyle(color: AppColors.inkSecondary),
+                    ),
                     GestureDetector(
                       onTap: () => context.push('/register'),
                       child: const Text(
@@ -208,18 +278,13 @@ class _HeroHeader extends StatelessWidget {
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(40)),
       ),
       child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(
-          bottom: Radius.circular(40),
-        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(40)),
         child: Stack(
           children: [
             Positioned(
               top: -40,
               right: -30,
-              child: DecorativeBlob(
-                color: AppColors.brandLight,
-                size: 200,
-              ),
+              child: DecorativeBlob(color: AppColors.brandLight, size: 200),
             ),
             Positioned(
               bottom: -20,
@@ -241,21 +306,21 @@ class _HeroHeader extends StatelessWidget {
                       bgColor: Colors.white.withValues(alpha: 0.18),
                       showGlow: true,
                     ).animate().scale(
-                          duration: 600.ms,
-                          curve: Curves.elasticOut,
-                          begin: const Offset(0.6, 0.6),
-                          end: const Offset(1, 1),
-                        ),
+                      duration: 600.ms,
+                      curve: Curves.elasticOut,
+                      begin: const Offset(0.6, 0.6),
+                      end: const Offset(1, 1),
+                    ),
                     const SizedBox(height: 14),
                     const Text(
-                      'Chào mừng trở lại',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.3,
-                      ),
-                    )
+                          'Chào mừng trở lại',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.3,
+                          ),
+                        )
                         .animate()
                         .fadeIn(delay: 200.ms, duration: 500.ms)
                         .moveY(begin: 10, end: 0),
@@ -266,9 +331,7 @@ class _HeroHeader extends StatelessWidget {
                         color: Colors.white.withValues(alpha: 0.85),
                         fontSize: 13,
                       ),
-                    )
-                        .animate()
-                        .fadeIn(delay: 400.ms, duration: 500.ms),
+                    ).animate().fadeIn(delay: 400.ms, duration: 500.ms),
                   ],
                 ),
               ),

@@ -10,6 +10,13 @@
       "args": [
         "mcp-server"
       ]
+    },
+    "vexp": {
+      "type": "stdio",
+      "command": "vexp",
+      "args": [
+        "mcp"
+      ]
     }
   }
 }

@@ -1,18 +1,22 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../data/models/quiz.dart';
 import '../../shared/widgets/decorative_blob.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/mascot_avatar.dart';
+import '../providers/quiz_generation_service.dart';
 
 /// Luồng: chọn tài liệu → upload → AI gen quiz → review → save
 enum _Step {
-  pickFile,    // 1. Chọn file
-  uploading,   // 2. Upload lên S3 (qua presigned URL)
-  generating,  // 3. AI đang tạo câu hỏi
-  preview,     // 4. Xem trước quiz, cho chỉnh sửa
-  saved,       // 5. Đã lưu thành công
+  pickFile, // 1. Chọn file
+  uploading, // 2. Upload lên S3 (qua presigned URL)
+  generating, // 3. AI đang tạo câu hỏi
+  preview, // 4. Xem trước quiz, cho chỉnh sửa
+  saved, // 5. Đã lưu thành công
 }
 
 class CreateQuizFromDocPage extends StatefulWidget {
@@ -32,6 +36,7 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
 
   // Stub generated questions cho UI demo
   List<_GeneratedQuestion> _questions = [];
+  int? _createdDocumentId;
 
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
@@ -92,71 +97,105 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
 
   Future<void> _startGenerate() async {
     if (_file == null) return;
-    setState(() {
-      _step = _Step.uploading;
-      _progress = 0;
-    });
+    try {
+      setState(() {
+        _step = _Step.uploading;
+        _progress = 0;
+      });
 
-    // TODO: thật sự gọi
-    //  1) POST /api/Document/generate-upload-url {fileName, contentType}
-    //  2) PUT s3 presignedUrl với bytes
-    //  3) POST /api/Document {s3Key}
-    //  4) POST /api/Quiz {documentId, title}
-    //  5) BE/AI service tự gen câu hỏi → POST /api/Question + /api/Option
-    // Giả lập progress upload 0..1 trong 2s
-    for (var i = 1; i <= 10; i++) {
-      await Future.delayed(const Duration(milliseconds: 200));
+      // 1. Read bytes
+      Uint8List bytes;
+      if (_file!.bytes != null) {
+        bytes = _file!.bytes!;
+      } else if (_file!.path != null) {
+        bytes = await File(_file!.path!).readAsBytes();
+      } else {
+        throw Exception('Không thể đọc dữ liệu file');
+      }
+
+      setState(() => _progress = 0.3);
+
+      // 2. Call QuizGenerationService
+      final result = await QuizGenerationService.instance
+          .generateQuestionsFromFile(
+            fileName: _file!.name,
+            fileBytes: bytes,
+            quizTitle: _quizTitle,
+            numberOfQuestions: _numQuestions,
+            difficulty: _difficulty,
+          );
+
+      setState(() => _progress = 0.8);
+      setState(() => _step = _Step.generating);
+
+      // Wait a moment for Mascot animation
+      await Future.delayed(const Duration(seconds: 1));
+
       if (!mounted) return;
-      setState(() => _progress = i / 10);
+      setState(() {
+        _createdDocumentId = result.document.id;
+        _questions = result.questions.map((q) {
+          return _GeneratedQuestion(
+            text: q.questionText,
+            options: q.options
+                .map((o) => _Opt(o.optionText, o.isCorrect))
+                .toList(),
+          );
+        }).toList();
+        _step = _Step.preview;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi: ${e.toString().replaceFirst('Exception: ', '')}'),
+        ),
+      );
+      setState(() => _step = _Step.pickFile);
     }
-
-    setState(() => _step = _Step.generating);
-    await Future.delayed(const Duration(seconds: 3));
-    if (!mounted) return;
-    setState(() {
-      _questions = _stubQuestions(_numQuestions);
-      _step = _Step.preview;
-    });
-  }
-
-  List<_GeneratedQuestion> _stubQuestions(int n) {
-    final samples = [
-      _GeneratedQuestion(
-        text: '${_quizTitle.isEmpty ? "Bài học" : _quizTitle}: Câu nào đúng?',
-        options: [
-          _Opt('Phương án A', true),
-          _Opt('Phương án B', false),
-          _Opt('Phương án C', false),
-          _Opt('Phương án D', false),
-        ],
-      ),
-      _GeneratedQuestion(
-        text: 'Theo tài liệu, kết luận chính là gì?',
-        options: [
-          _Opt('Kết luận thứ nhất', false),
-          _Opt('Kết luận thứ hai', true),
-          _Opt('Cả hai đều đúng', false),
-          _Opt('Không có kết luận', false),
-        ],
-      ),
-      _GeneratedQuestion(
-        text: 'Khái niệm nào sau đây được nhắc đến?',
-        options: [
-          _Opt('Khái niệm 1', false),
-          _Opt('Khái niệm 2', false),
-          _Opt('Khái niệm 3', true),
-          _Opt('Tất cả phương án trên', false),
-        ],
-      ),
-    ];
-    return List.generate(n, (i) => samples[i % samples.length]);
   }
 
   void _saveQuiz() async {
-    setState(() => _step = _Step.saved);
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    Navigator.pop(context, true);
+    if (_createdDocumentId == null) return;
+    try {
+      setState(() => _step = _Step.uploading);
+
+      final list = _questions.map((q) {
+        return GeneratedQuestionDto(
+          questionText: q.text,
+          questionType: 'MultipleChoice',
+          options: q.options
+              .map(
+                (o) => GeneratedOptionDto(
+                  optionText: o.text,
+                  isCorrect: o.isCorrect,
+                ),
+              )
+              .toList(),
+        );
+      }).toList();
+
+      await QuizGenerationService.instance.saveGeneratedQuiz(
+        documentId: _createdDocumentId!,
+        quizTitle: _quizTitle,
+        questions: list,
+      );
+
+      setState(() => _step = _Step.saved);
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Lưu thất bại: ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
+        ),
+      );
+      setState(() => _step = _Step.preview);
+    }
   }
 
   @override
@@ -238,14 +277,15 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
                     const SizedBox(height: 14),
                     const Text(
                       'Chạm để chọn tài liệu',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     const Text(
                       'PDF, Word, ảnh, văn bản',
-                      style: TextStyle(
-                          color: AppColors.inkMuted, fontSize: 13),
+                      style: TextStyle(color: AppColors.inkMuted, fontSize: 13),
                     ),
                   ],
                 ),
@@ -268,33 +308,46 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: _colorFor(_file!.extension)
-                          .withValues(alpha: 0.12),
+                      color: _colorFor(
+                        _file!.extension,
+                      ).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(_iconFor(_file!.extension),
-                        color: _colorFor(_file!.extension)),
+                    child: Icon(
+                      _iconFor(_file!.extension),
+                      color: _colorFor(_file!.extension),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(_file!.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14)),
-                        Text(_formatSize(_file!.size),
-                            style: const TextStyle(
-                                color: AppColors.inkMuted, fontSize: 12)),
+                        Text(
+                          _file!.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          _formatSize(_file!.size),
+                          style: const TextStyle(
+                            color: AppColors.inkMuted,
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close,
-                        color: AppColors.inkMuted, size: 20),
+                    icon: const Icon(
+                      Icons.close,
+                      color: AppColors.inkMuted,
+                      size: 20,
+                    ),
                     onPressed: () => setState(() => _file = null),
                   ),
                 ],
@@ -303,23 +356,23 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
             const SizedBox(height: 24),
 
             // Title input
-            const Text('Tên quiz',
-                style: TextStyle(
-                    fontWeight: FontWeight.w700, fontSize: 13)),
+            const Text(
+              'Tên quiz',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            ),
             const SizedBox(height: 6),
             TextFormField(
               initialValue: _quizTitle,
               onChanged: (v) => _quizTitle = v,
-              decoration: const InputDecoration(
-                hintText: 'Đặt tên cho quiz',
-              ),
+              decoration: const InputDecoration(hintText: 'Đặt tên cho quiz'),
             ),
             const SizedBox(height: 16),
 
             // Number of questions
-            const Text('Số câu hỏi',
-                style: TextStyle(
-                    fontWeight: FontWeight.w700, fontSize: 13)),
+            const Text(
+              'Số câu hỏi',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -335,8 +388,8 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
                     fontWeight: FontWeight.w600,
                   ),
                   side: BorderSide(
-                      color:
-                          selected ? AppColors.brandBlue : AppColors.border),
+                    color: selected ? AppColors.brandBlue : AppColors.border,
+                  ),
                   showCheckmark: false,
                 );
               }).toList(),
@@ -344,9 +397,10 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
             const SizedBox(height: 16),
 
             // Difficulty
-            const Text('Độ khó',
-                style: TextStyle(
-                    fontWeight: FontWeight.w700, fontSize: 13)),
+            const Text(
+              'Độ khó',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            ),
             const SizedBox(height: 8),
             Row(
               children: ['Dễ', 'Vừa', 'Khó'].map((d) {
@@ -411,26 +465,34 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceBlue,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.cloud_upload,
-                  size: 56, color: AppColors.brandBlue),
-            )
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceBlue,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.cloud_upload,
+                    size: 56,
+                    color: AppColors.brandBlue,
+                  ),
+                )
                 .animate(onPlay: (c) => c.repeat(reverse: true))
                 .scale(
-                    duration: 1.seconds,
-                    begin: const Offset(0.95, 0.95),
-                    end: const Offset(1.05, 1.05)),
+                  duration: 1.seconds,
+                  begin: const Offset(0.95, 0.95),
+                  end: const Offset(1.05, 1.05),
+                ),
             const SizedBox(height: 24),
-            const Text('Đang tải tài liệu...',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const Text(
+              'Đang tải tài liệu...',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 8),
-            Text(_file?.name ?? '',
-                style: const TextStyle(color: AppColors.inkMuted),
-                textAlign: TextAlign.center),
+            Text(
+              _file?.name ?? '',
+              style: const TextStyle(color: AppColors.inkMuted),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 24),
             SizedBox(
               width: 280,
@@ -448,7 +510,9 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
             Text(
               '${(_progress * 100).toInt()}%',
               style: const TextStyle(
-                  color: AppColors.brandBlue, fontWeight: FontWeight.w700),
+                color: AppColors.brandBlue,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -473,14 +537,16 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
                 children: [
                   ...List.generate(3, (i) {
                     return Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.accentPink.withValues(alpha: 0.4),
-                          width: 2,
-                        ),
-                      ),
-                    )
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppColors.accentPink.withValues(
+                                alpha: 0.4,
+                              ),
+                              width: 2,
+                            ),
+                          ),
+                        )
                         .animate(onPlay: (c) => c.repeat())
                         .scale(
                           delay: (i * 600).ms,
@@ -494,10 +560,9 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [
-                        AppColors.accentPink,
-                        AppColors.accentOrange,
-                      ]),
+                      gradient: const LinearGradient(
+                        colors: [AppColors.accentPink, AppColors.accentOrange],
+                      ),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
@@ -545,7 +610,9 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.accentEmerald.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
@@ -553,8 +620,11 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.check_circle,
-                            size: 14, color: AppColors.accentEmerald),
+                        Icon(
+                          Icons.check_circle,
+                          size: 14,
+                          color: AppColors.accentEmerald,
+                        ),
                         SizedBox(width: 4),
                         Text(
                           'Đã tạo xong',
@@ -573,7 +643,9 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
               Text(
                 _quizTitle,
                 style: const TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.w800),
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
@@ -590,93 +662,101 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
             itemBuilder: (_, i) {
               final q = _questions[i];
               return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: const BoxDecoration(
-                            gradient: AppColors.gradientBrand,
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            '${i + 1}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 13,
+                        Row(
+                          children: [
+                            Container(
+                              width: 28,
+                              height: 28,
+                              decoration: const BoxDecoration(
+                                gradient: AppColors.gradientBrand,
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                '${i + 1}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                q.text,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            q.text,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 15),
+                        const SizedBox(height: 12),
+                        ...q.options.map(
+                          (o) => Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: o.isCorrect
+                                  ? AppColors.accentEmerald.withValues(
+                                      alpha: 0.1,
+                                    )
+                                  : AppColors.surface,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: o.isCorrect
+                                    ? AppColors.accentEmerald
+                                    : AppColors.border,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  o.isCorrect
+                                      ? Icons.check_circle
+                                      : Icons.radio_button_unchecked,
+                                  size: 18,
+                                  color: o.isCorrect
+                                      ? AppColors.accentEmerald
+                                      : AppColors.inkMuted,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    o.text,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: o.isCorrect
+                                          ? AppColors.ink
+                                          : AppColors.inkSecondary,
+                                      fontWeight: o.isCorrect
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    ...q.options.map((o) => Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: o.isCorrect
-                                ? AppColors.accentEmerald.withValues(alpha: 0.1)
-                                : AppColors.surface,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: o.isCorrect
-                                  ? AppColors.accentEmerald
-                                  : AppColors.border,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                o.isCorrect
-                                    ? Icons.check_circle
-                                    : Icons.radio_button_unchecked,
-                                size: 18,
-                                color: o.isCorrect
-                                    ? AppColors.accentEmerald
-                                    : AppColors.inkMuted,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  o.text,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: o.isCorrect
-                                        ? AppColors.ink
-                                        : AppColors.inkSecondary,
-                                    fontWeight: o.isCorrect
-                                        ? FontWeight.w600
-                                        : FontWeight.w400,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        )),
-                  ],
-                ),
-              )
+                  )
                   .animate()
                   .fadeIn(delay: (i * 80).ms, duration: 300.ms)
                   .moveY(begin: 12, end: 0);
@@ -688,23 +768,25 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
           color: Colors.white,
           child: SafeArea(
             top: false,
-            child: Row(children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _startGenerate,
-                  child: const Text('Tạo lại'),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _startGenerate,
+                    child: const Text('Tạo lại'),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: GradientButton(
-                  label: 'Lưu quiz',
-                  icon: Icons.check,
-                  onPressed: _saveQuiz,
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: GradientButton(
+                    label: 'Lưu quiz',
+                    icon: Icons.check,
+                    onPressed: _saveQuiz,
+                  ),
                 ),
-              ),
-            ]),
+              ],
+            ),
           ),
         ),
       ],
@@ -738,13 +820,17 @@ class _CreateQuizFromDocPageState extends State<CreateQuizFromDocPage> {
                     color: AppColors.accentEmerald.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.check_circle,
-                      size: 80, color: AppColors.accentEmerald),
+                  child: const Icon(
+                    Icons.check_circle,
+                    size: 80,
+                    color: AppColors.accentEmerald,
+                  ),
                 ).animate().scale(
-                    duration: 500.ms,
-                    curve: Curves.elasticOut,
-                    begin: const Offset(0.3, 0.3),
-                    end: const Offset(1, 1)),
+                  duration: 500.ms,
+                  curve: Curves.elasticOut,
+                  begin: const Offset(0.3, 0.3),
+                  end: const Offset(1, 1),
+                ),
                 const SizedBox(height: 24),
                 const Text(
                   'Tạo quiz thành công! 🎉',
@@ -844,8 +930,13 @@ class _DashedBorderPainter extends CustomPainter {
     _drawDashedPath(canvas, path, paint, 8, 5);
   }
 
-  void _drawDashedPath(Canvas canvas, Path path, Paint paint,
-      double dashWidth, double gapWidth) {
+  void _drawDashedPath(
+    Canvas canvas,
+    Path path,
+    Paint paint,
+    double dashWidth,
+    double gapWidth,
+  ) {
     final metrics = path.computeMetrics();
     for (final metric in metrics) {
       double dist = 0;
@@ -906,4 +997,3 @@ class _GeneratingHintsState extends State<_GeneratingHints> {
     );
   }
 }
-

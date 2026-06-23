@@ -25,7 +25,9 @@ class GoogleButton extends StatelessWidget {
           backgroundColor: Colors.white,
           foregroundColor: AppColors.ink,
           side: const BorderSide(color: AppColors.border, width: 1.5),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 16),
         ),
         child: Row(
@@ -73,20 +75,42 @@ class _GoogleLogoPainter extends CustomPainter {
     final r = w / 2;
     final innerR = r * 0.42;
 
-    Paint p(Color c) => Paint()..color = c..style = PaintingStyle.fill;
+    Paint p(Color c) => Paint()
+      ..color = c
+      ..style = PaintingStyle.fill;
 
     // Blue (top right)
-    canvas.drawArc(Rect.fromCircle(center: Offset(cx, cy), radius: r),
-        -0.35, 1.55, true, p(const Color(0xFF4285F4)));
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      -0.35,
+      1.55,
+      true,
+      p(const Color(0xFF4285F4)),
+    );
     // Green (bottom right)
-    canvas.drawArc(Rect.fromCircle(center: Offset(cx, cy), radius: r),
-        1.2, 1.2, true, p(const Color(0xFF34A853)));
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      1.2,
+      1.2,
+      true,
+      p(const Color(0xFF34A853)),
+    );
     // Yellow (bottom left)
-    canvas.drawArc(Rect.fromCircle(center: Offset(cx, cy), radius: r),
-        2.4, 1.4, true, p(const Color(0xFFFBBC04)));
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      2.4,
+      1.4,
+      true,
+      p(const Color(0xFFFBBC04)),
+    );
     // Red (top left)
-    canvas.drawArc(Rect.fromCircle(center: Offset(cx, cy), radius: r),
-        3.8, 1.85, true, p(const Color(0xFFEA4335)));
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: r),
+      3.8,
+      1.85,
+      true,
+      p(const Color(0xFFEA4335)),
+    );
 
     // White inner hole
     canvas.drawCircle(Offset(cx, cy), innerR, p(Colors.white));

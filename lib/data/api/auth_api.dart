@@ -24,7 +24,30 @@ class AuthApi {
       data: {'email': email, 'password': password},
     );
 
-    if (res.statusCode != null && res.statusCode! >= 400) {
+    if (res.statusCode != null && res.statusCode! >= 300) {
+      throw _extractError(res);
+    }
+
+    final data = res.data;
+    final token = _extractToken(data);
+    if (token == null || token.isEmpty) {
+      throw Exception('Phản hồi không có token');
+    }
+    return AuthResult(
+      token: token,
+      role: _extractField(data, ['role', 'Role']),
+      fullName: _extractField(data, ['fullName', 'FullName', 'name']),
+    );
+  }
+
+  /// Đăng nhập bằng Google idToken (đã lấy qua google_sign_in trên client).
+  Future<AuthResult> googleLogin({required String idToken}) async {
+    final res = await _dio.post(
+      ApiConstants.authGoogleLogin,
+      data: {'credential': idToken},
+    );
+
+    if (res.statusCode != null && res.statusCode! >= 300) {
       throw _extractError(res);
     }
 
@@ -55,17 +78,36 @@ class AuthApi {
         'role': role,
       },
     );
-    if (res.statusCode != null && res.statusCode! >= 400) {
+    if (res.statusCode != null && res.statusCode! >= 300) {
       throw _extractError(res);
     }
   }
 
+  /// Gửi mã reset password tới email user.
+  Future<void> forgotPassword({required String email}) async {
+    final res = await _dio.post(
+      ApiConstants.authForgotPassword,
+      data: {'email': email},
+    );
+    if (res.statusCode != null && res.statusCode! >= 300) {
+      throw _extractError(res);
+    }
+  }
+
+  /// JWT có dạng `xxx.yyy.zzz` (base64url) — không khoảng trắng, không HTML.
+  /// Chặn case server trả trang HTML (301 redirect…) bị lưu nhầm làm token.
+  static bool _looksLikeJwt(String s) =>
+      RegExp(r'^[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+$')
+          .hasMatch(s.trim());
+
   String? _extractToken(dynamic data) {
-    if (data is String) return data;
+    if (data is String) {
+      return _looksLikeJwt(data) ? data.trim() : null;
+    }
     if (data is Map) {
       for (final key in ['token', 'accessToken', 'Token', 'AccessToken']) {
         final v = data[key];
-        if (v is String && v.isNotEmpty) return v;
+        if (v is String && _looksLikeJwt(v)) return v.trim();
       }
       // có khi token bọc trong { data: { token: ... } }
       if (data['data'] is Map) return _extractToken(data['data']);
@@ -88,7 +130,8 @@ class AuthApi {
     final d = res.data;
     String msg = 'Lỗi ${res.statusCode}';
     if (d is Map) {
-      msg = d['message']?.toString() ??
+      msg =
+          d['message']?.toString() ??
           d['Message']?.toString() ??
           d['error']?.toString() ??
           msg;

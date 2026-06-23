@@ -85,15 +85,19 @@ class _HomeTab extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Xin chào,',
-                      style:
-                          TextStyle(color: AppColors.inkMuted, fontSize: 14)),
+                  const Text(
+                    'Xin chào,',
+                    style: TextStyle(color: AppColors.inkMuted, fontSize: 14),
+                  ),
                   const SizedBox(height: 2),
-                  Text(name,
-                      style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5)),
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   const Text(
                     'Hôm nay dạy gì cho học trò? 📚',
@@ -109,73 +113,80 @@ class _HomeTab extends ConsumerWidget {
 
         // CTA Mascot AI banner
         Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [AppColors.accentPink, AppColors.accentOrange],
-            ),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: AppShadows.hover,
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                right: -20,
-                top: -10,
-                child: DecorativeBlob(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  size: 140,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.accentPink, AppColors.accentOrange],
                 ),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: AppShadows.hover,
               ),
-              Row(
+              child: Stack(
                 children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                  Positioned(
+                    right: -20,
+                    top: -10,
+                    child: DecorativeBlob(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      size: 140,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.auto_awesome,
-                                color: Colors.white, size: 20),
-                            SizedBox(width: 6),
-                            Text(
-                              'MASCOT AI',
-                              style: TextStyle(
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.auto_awesome,
                                   color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 2),
+                                  size: 20,
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'MASCOT AI',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Trợ lý dạy học của bạn',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 19,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Tạo quiz, soạn bài, gợi ý hoạt động — chỉ cần hỏi.',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                height: 1.4,
+                              ),
                             ),
                           ],
                         ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Trợ lý dạy học của bạn',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 19,
-                              fontWeight: FontWeight.w800),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Tạo quiz, soạn bài, gợi ý hoạt động — chỉ cần hỏi.',
-                          style: TextStyle(
-                              color: Colors.white70, height: 1.4),
-                        ),
-                      ],
-                    ),
-                  ),
-                  MascotAvatar(
-                    size: 70,
-                    bgColor: Colors.white.withValues(alpha: 0.25),
+                      ),
+                      MascotAvatar(
+                        size: 70,
+                        bgColor: Colors.white.withValues(alpha: 0.25),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-        )
+            )
             .animate()
             .fadeIn(delay: 200.ms, duration: 500.ms)
             .scale(begin: const Offset(0.97, 0.97), end: const Offset(1, 1)),
@@ -183,43 +194,43 @@ class _HomeTab extends ConsumerWidget {
 
         // 4 stats grid
         GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.55,
-          children: const [
-            _StatCard(
-              icon: Icons.menu_book,
-              label: 'Quiz',
-              value: '0',
-              color: AppColors.brandBlue,
-              bg: AppColors.surfaceBlue,
-            ),
-            _StatCard(
-              icon: Icons.event,
-              label: 'Phiên live',
-              value: '0',
-              color: AppColors.accentOrange,
-              bg: AppColors.surfaceAmber,
-            ),
-            _StatCard(
-              icon: Icons.people,
-              label: 'Học sinh',
-              value: '0',
-              color: AppColors.accentEmerald,
-              bg: AppColors.surfaceTeal,
-            ),
-            _StatCard(
-              icon: Icons.auto_awesome,
-              label: 'Lượt chat AI',
-              value: '0',
-              color: AppColors.accentPink,
-              bg: AppColors.surfacePink,
-            ),
-          ],
-        )
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.55,
+              children: const [
+                _StatCard(
+                  icon: Icons.menu_book,
+                  label: 'Quiz',
+                  value: '0',
+                  color: AppColors.brandBlue,
+                  bg: AppColors.surfaceBlue,
+                ),
+                _StatCard(
+                  icon: Icons.event,
+                  label: 'Phiên live',
+                  value: '0',
+                  color: AppColors.accentOrange,
+                  bg: AppColors.surfaceAmber,
+                ),
+                _StatCard(
+                  icon: Icons.people,
+                  label: 'Học sinh',
+                  value: '0',
+                  color: AppColors.accentEmerald,
+                  bg: AppColors.surfaceTeal,
+                ),
+                _StatCard(
+                  icon: Icons.auto_awesome,
+                  label: 'Lượt chat AI',
+                  value: '0',
+                  color: AppColors.accentPink,
+                  bg: AppColors.surfacePink,
+                ),
+              ],
+            )
             .animate()
             .fadeIn(delay: 400.ms, duration: 500.ms)
             .moveY(begin: 12, end: 0),
@@ -227,30 +238,46 @@ class _HomeTab extends ConsumerWidget {
 
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 4),
-          child: Text('Hành động nhanh',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+          child: Text(
+            'Hành động nhanh',
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+          ),
         ),
         const SizedBox(height: 12),
         Card(
-          child: Column(children: [
-            _quickAction(
-              Icons.upload_file,
-              'Tạo quiz từ tài liệu',
-              AppColors.brandBlue,
-              () => context.push('/quiz/from-doc'),
-              subtitle: 'AI đọc PDF/Word và soạn câu hỏi cho bạn',
-              highlight: true,
-            ),
-            const Divider(height: 1, indent: 56),
-            _quickAction(Icons.add_circle, 'Tạo quiz thủ công',
-                AppColors.brandMid, () {}),
-            const Divider(height: 1, indent: 56),
-            _quickAction(Icons.play_circle, 'Mở phiên live',
-                AppColors.accentEmerald, () {}),
-            const Divider(height: 1, indent: 56),
-            _quickAction(Icons.auto_awesome, 'Trò chuyện với Mascot AI',
-                AppColors.accentPink, () {}),
-          ]),
+          child: Column(
+            children: [
+              _quickAction(
+                Icons.upload_file,
+                'Tạo quiz từ tài liệu',
+                AppColors.brandBlue,
+                () => context.push('/quiz/from-doc'),
+                subtitle: 'AI đọc PDF/Word và soạn câu hỏi cho bạn',
+                highlight: true,
+              ),
+              const Divider(height: 1, indent: 56),
+              _quickAction(
+                Icons.add_circle,
+                'Tạo quiz thủ công',
+                AppColors.brandMid,
+                () {},
+              ),
+              const Divider(height: 1, indent: 56),
+              _quickAction(
+                Icons.play_circle,
+                'Mở phiên live',
+                AppColors.accentEmerald,
+                () {},
+              ),
+              const Divider(height: 1, indent: 56),
+              _quickAction(
+                Icons.auto_awesome,
+                'Trò chuyện với Mascot AI',
+                AppColors.accentPink,
+                () {},
+              ),
+            ],
+          ),
         ).animate().fadeIn(delay: 600.ms),
       ],
     );
@@ -270,48 +297,50 @@ class _HomeTab extends ConsumerWidget {
         height: 40,
         decoration: BoxDecoration(
           gradient: highlight
-              ? LinearGradient(
-                  colors: [color, color.withValues(alpha: 0.7)],
-                )
+              ? LinearGradient(colors: [color, color.withValues(alpha: 0.7)])
               : null,
           color: highlight ? null : color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, color: highlight ? Colors.white : color, size: 22),
       ),
-      title: Row(children: [
-        Flexible(
-          child: Text(label,
-              style:
-                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-        ),
-        if (highlight) ...[
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: AppColors.accentPink.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Text(
-              'AI',
-              style: TextStyle(
-                color: AppColors.accentPink,
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5,
-              ),
+      title: Row(
+        children: [
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
             ),
           ),
+          if (highlight) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.accentPink.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'AI',
+                style: TextStyle(
+                  color: AppColors.accentPink,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
         ],
-      ]),
+      ),
       subtitle: subtitle == null
           ? null
           : Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: Text(subtitle,
-                  style: const TextStyle(
-                      color: AppColors.inkMuted, fontSize: 12)),
+              child: Text(
+                subtitle,
+                style: const TextStyle(color: AppColors.inkMuted, fontSize: 12),
+              ),
             ),
       trailing: const Icon(Icons.chevron_right, color: AppColors.inkMuted),
       onTap: onTap,
@@ -354,14 +383,18 @@ class _StatCard extends StatelessWidget {
             child: Icon(icon, color: color, size: 20),
           ),
           const Spacer(),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 22, fontWeight: FontWeight.w800)),
-          Text(label,
-              style: const TextStyle(
-                  color: AppColors.inkSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500)),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+          ),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.inkSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
@@ -377,11 +410,15 @@ class _LibraryTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Thư viện quiz',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+          const Text(
+            'Thư viện quiz',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 4),
-          const Text('Tất cả quiz của bạn',
-              style: TextStyle(color: AppColors.inkSecondary)),
+          const Text(
+            'Tất cả quiz của bạn',
+            style: TextStyle(color: AppColors.inkSecondary),
+          ),
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -393,8 +430,11 @@ class _LibraryTab extends StatelessWidget {
             child: const TextField(
               decoration: InputDecoration(
                 hintText: 'Tìm quiz...',
-                prefixIcon:
-                    Icon(Icons.search, color: AppColors.inkMuted, size: 22),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: AppColors.inkMuted,
+                  size: 22,
+                ),
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
@@ -405,8 +445,10 @@ class _LibraryTab extends StatelessWidget {
           const SizedBox(height: 32),
           const Expanded(
             child: Center(
-              child: Text('Chưa có quiz nào',
-                  style: TextStyle(color: AppColors.inkMuted)),
+              child: Text(
+                'Chưa có quiz nào',
+                style: TextStyle(color: AppColors.inkMuted),
+              ),
             ),
           ),
         ],
@@ -424,15 +466,21 @@ class _SessionsTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Phiên live',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+          Text(
+            'Phiên live',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+          ),
           SizedBox(height: 4),
-          Text('Quản lý các buổi học trực tiếp',
-              style: TextStyle(color: AppColors.inkSecondary)),
+          Text(
+            'Quản lý các buổi học trực tiếp',
+            style: TextStyle(color: AppColors.inkSecondary),
+          ),
           Expanded(
             child: Center(
-              child: Text('Chưa có phiên nào',
-                  style: TextStyle(color: AppColors.inkMuted)),
+              child: Text(
+                'Chưa có phiên nào',
+                style: TextStyle(color: AppColors.inkMuted),
+              ),
             ),
           ),
         ],
@@ -480,27 +528,40 @@ class _ProfileTab extends ConsumerWidget {
             'Giáo viên',
             textAlign: TextAlign.center,
             style: TextStyle(
-                color: AppColors.accentOrange, fontWeight: FontWeight.w700),
+              color: AppColors.accentOrange,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
         const SizedBox(height: 28),
-        Card(child: Column(children: [
-          _tile(Icons.settings_outlined, 'Cài đặt', () {}),
-          const Divider(height: 1, indent: 56),
-          _tile(Icons.workspace_premium_outlined, 'Gói đăng ký', () {}),
-          const Divider(height: 1, indent: 56),
-          _tile(Icons.help_outline, 'Trợ giúp', () {}),
-          const Divider(height: 1, indent: 56),
-          _tile(Icons.logout, 'Đăng xuất',
-              () => ref.read(authProvider.notifier).logout(),
-              danger: true),
-        ])),
+        Card(
+          child: Column(
+            children: [
+              _tile(Icons.settings_outlined, 'Cài đặt', () {}),
+              const Divider(height: 1, indent: 56),
+              _tile(Icons.workspace_premium_outlined, 'Gói đăng ký', () {}),
+              const Divider(height: 1, indent: 56),
+              _tile(Icons.help_outline, 'Trợ giúp', () {}),
+              const Divider(height: 1, indent: 56),
+              _tile(
+                Icons.logout,
+                'Đăng xuất',
+                () => ref.read(authProvider.notifier).logout(),
+                danger: true,
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  Widget _tile(IconData icon, String label, VoidCallback onTap,
-      {bool danger = false}) {
+  Widget _tile(
+    IconData icon,
+    String label,
+    VoidCallback onTap, {
+    bool danger = false,
+  }) {
     final color = danger ? AppColors.danger : AppColors.brandBlue;
     return ListTile(
       leading: Container(
@@ -512,11 +573,14 @@ class _ProfileTab extends ConsumerWidget {
         ),
         child: Icon(icon, color: color, size: 20),
       ),
-      title: Text(label,
-          style: TextStyle(
-              color: danger ? AppColors.danger : AppColors.ink,
-              fontWeight: FontWeight.w600,
-              fontSize: 15)),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: danger ? AppColors.danger : AppColors.ink,
+          fontWeight: FontWeight.w600,
+          fontSize: 15,
+        ),
+      ),
       trailing: danger
           ? null
           : const Icon(Icons.chevron_right, color: AppColors.inkMuted),
