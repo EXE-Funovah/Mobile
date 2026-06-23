@@ -129,7 +129,7 @@ class MascotLiveApi {
       if (res.statusCode == null || res.statusCode! >= 300) {
         throw Exception(
           _extractMessage(res.data) ??
-              'Không tạo được kết nối Realtime (${res.statusCode})',
+              'Không tạo được kết nối với Sumadi (${res.statusCode})',
         );
       }
 
@@ -138,12 +138,12 @@ class MascotLiveApi {
         return data;
       }
 
-      throw Exception('Realtime trả về SDP không hợp lệ');
+      throw Exception('Kết nối trả về dữ liệu không hợp lệ');
     } on DioException catch (error) {
       throw Exception(
         formatNetworkError(
           error,
-          fallbackMessage: 'Không tạo được kết nối Realtime',
+          fallbackMessage: 'Không tạo được kết nối với Sumadi',
         ),
       );
     }

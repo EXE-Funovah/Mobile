@@ -37,6 +37,7 @@ class Ring extends StatelessWidget {
               track: track,
             ),
           ),
+          // ignore: use_null_aware_elements
           if (child != null) child!,
         ],
       ),

@@ -12,6 +12,7 @@ class UserProfile {
   final int documentsProcessed;
   final DateTime? createdAt;
   final String? authenticator; // 'Google' / 'Local' / 'Both'
+  final String? avatarUrl; // presigned download URL (null nếu chưa đặt)
 
   const UserProfile({
     required this.id,
@@ -22,6 +23,7 @@ class UserProfile {
     this.documentsProcessed = 0,
     this.createdAt,
     this.authenticator,
+    this.avatarUrl,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -38,6 +40,7 @@ class UserProfile {
       createdAt: _date(json['createdAt'] ?? json['CreatedAt']),
       authenticator: (json['authenticator'] ?? json['Authenticator'])
           ?.toString(),
+      avatarUrl: (json['avatarUrl'] ?? json['AvatarUrl'])?.toString(),
     );
   }
 
@@ -84,6 +87,35 @@ class UserApi {
       },
     );
     _ensureOk(res);
+  }
+
+  /// POST /api/User/avatar-upload-url — presign upload ảnh đại diện.
+  /// Trả về (uploadUrl, s3Key). PUT ảnh thô lên uploadUrl rồi gọi [updateAvatar].
+  Future<({String uploadUrl, String s3Key})> avatarUploadUrl({
+    required String fileName,
+    required String contentType,
+  }) async {
+    final res = await _dio.post(
+      '${ApiConstants.users}/avatar-upload-url',
+      data: {'fileName': fileName, 'contentType': contentType},
+    );
+    _ensureOk(res);
+    final m = Map<String, dynamic>.from(res.data as Map);
+    return (
+      uploadUrl: (m['uploadUrl'] ?? m['UploadUrl']).toString(),
+      s3Key: (m['s3Key'] ?? m['S3Key']).toString(),
+    );
+  }
+
+  /// PATCH /api/User/avatar — lưu S3 key avatar (null/'' = gỡ avatar).
+  /// Trả về UserProfile mới (avatarUrl = presigned URL).
+  Future<UserProfile> updateAvatar(String? s3Key) async {
+    final res = await _dio.patch(
+      '${ApiConstants.users}/avatar',
+      data: {'avatarUrl': s3Key},
+    );
+    _ensureOk(res);
+    return UserProfile.fromJson(Map<String, dynamic>.from(res.data as Map));
   }
 
   /// DELETE /api/User/{id} — soft delete tài khoản của chính mình.

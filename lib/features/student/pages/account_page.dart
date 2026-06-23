@@ -1,9 +1,12 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../core/theme/theme_tokens.dart';
 import '../../../data/api/auth_api.dart';
+import '../../../data/api/document_api.dart';
 import '../../../data/api/user_api.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/providers/user_profile_provider.dart';
@@ -75,8 +78,8 @@ class _AccountBody extends ConsumerWidget {
               _SettingTile(
                 icon: Icons.image_outlined,
                 label: 'Ảnh đại diện',
-                value: 'Sắp ra mắt',
-                disabled: true,
+                value: user.avatarUrl != null ? 'Đổi ảnh' : 'Thêm ảnh',
+                onTap: () => _pickAndUploadAvatar(context, ref, user),
               ),
               _Divider(t),
               _SettingTile(
@@ -127,7 +130,8 @@ class _AccountBody extends ConsumerWidget {
               _SettingTile(
                 icon: Icons.link,
                 label: 'Tài khoản Google',
-                value: (user.authenticator == 'Google' ||
+                value:
+                    (user.authenticator == 'Google' ||
                         user.authenticator == 'Both')
                     ? 'Đã liên kết'
                     : 'Chưa liên kết',
@@ -282,11 +286,69 @@ class _AccountBody extends ConsumerWidget {
     }
   }
 
-  void _showEditNameDialog(
+  static String _imageContentType(String name) {
+    final n = name.toLowerCase();
+    if (n.endsWith('.png')) return 'image/png';
+    if (n.endsWith('.webp')) return 'image/webp';
+    return 'image/jpeg';
+  }
+
+  /// Chọn ảnh → presign → PUT S3 → PATCH avatar → refresh profile.
+  Future<void> _pickAndUploadAvatar(
     BuildContext context,
     WidgetRef ref,
     UserProfile u,
-  ) {
+  ) async {
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    if (picked == null || picked.files.isEmpty) return;
+    final file = picked.files.first;
+    final bytes =
+        file.bytes ??
+        (file.path != null ? await File(file.path!).readAsBytes() : null);
+    if (bytes == null || !context.mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      final ct = _imageContentType(file.name);
+      final presign = await UserApi.instance.avatarUploadUrl(
+        fileName: file.name,
+        contentType: ct,
+      );
+      await DocumentApi.instance.putToS3(
+        uploadUrl: presign.uploadUrl,
+        contentType: ct,
+        bytes: bytes,
+      );
+      await UserApi.instance.updateAvatar(presign.s3Key);
+      ref.invalidate(userProfileProvider);
+      if (context.mounted) Navigator.pop(context); // đóng loading
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã cập nhật ảnh đại diện')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) Navigator.pop(context);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Lỗi: ${e.toString().replaceFirst('Exception: ', '')}',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showEditNameDialog(BuildContext context, WidgetRef ref, UserProfile u) {
     final ctl = TextEditingController(text: u.fullName);
     showDialog(
       context: context,
@@ -326,9 +388,9 @@ class _AccountBody extends ConsumerWidget {
                 }
               } catch (e) {
                 if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text(e.toString())),
-                  );
+                  ScaffoldMessenger.of(
+                    ctx,
+                  ).showSnackBar(SnackBar(content: Text(e.toString())));
                 }
               }
             },
@@ -364,17 +426,15 @@ class _AccountBody extends ConsumerWidget {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text(
-                        'Đã gửi email. Kiểm tra hộp thư của bạn.',
-                      ),
+                      content: Text('Đã gửi email. Kiểm tra hộp thư của bạn.'),
                     ),
                   );
                 }
               } catch (e) {
                 if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text(e.toString())),
-                  );
+                  ScaffoldMessenger.of(
+                    ctx,
+                  ).showSnackBar(SnackBar(content: Text(e.toString())));
                 }
               }
             },
@@ -385,11 +445,7 @@ class _AccountBody extends ConsumerWidget {
     );
   }
 
-  void _confirmDeleteAccount(
-    BuildContext context,
-    WidgetRef ref,
-    int userId,
-  ) {
+  void _confirmDeleteAccount(BuildContext context, WidgetRef ref, int userId) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -413,9 +469,9 @@ class _AccountBody extends ConsumerWidget {
                 if (ctx.mounted) Navigator.pop(ctx);
               } catch (e) {
                 if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text(e.toString())),
-                  );
+                  ScaffoldMessenger.of(
+                    ctx,
+                  ).showSnackBar(SnackBar(content: Text(e.toString())));
                 }
               }
             },
@@ -465,7 +521,9 @@ class _SettingTile extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: disabled
                         ? t.surfaceSunken.withValues(alpha: 0.5)
-                        : (danger ? t.danger.withValues(alpha: 0.1) : t.surfaceSunken),
+                        : (danger
+                              ? t.danger.withValues(alpha: 0.1)
+                              : t.surfaceSunken),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, size: 19, color: iconColor),

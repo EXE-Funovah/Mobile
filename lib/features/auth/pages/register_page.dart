@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../shared/widgets/google_button.dart';
 import '../../shared/widgets/gradient_button.dart';
@@ -91,20 +92,22 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                           style: TextStyle(color: AppColors.inkSecondary),
                         ),
                         const SizedBox(height: 24),
-                        GoogleButton(
-                          label: 'Đăng ký với Google',
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('🚧 Đăng ký Google sẽ sớm có'),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        const OrDivider(label: 'HOẶC ĐIỀN THÔNG TIN'),
-                        const SizedBox(height: 16),
+                        if (ApiConstants.googleSignInEnabled) ...[
+                          GoogleButton(
+                            label: 'Đăng ký với Google',
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('🚧 Đăng ký Google sẽ sớm có'),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          const OrDivider(label: 'HOẶC ĐIỀN THÔNG TIN'),
+                          const SizedBox(height: 16),
+                        ],
                         _RoleSelector(
                           selected: _role,
                           onChanged: (v) => setState(() => _role = v),
@@ -149,9 +152,12 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                             ),
                           ),
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty)
+                            if (v == null || v.trim().isEmpty) {
                               return 'Nhập email';
-                            if (!v.contains('@')) return 'Email không hợp lệ';
+                            }
+                            if (!v.contains('@')) {
+                              return 'Email không hợp lệ';
+                            }
                             return null;
                           },
                         ),

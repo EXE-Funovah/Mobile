@@ -522,7 +522,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
       onTap: answered ? null : () => _pick(idx, qs),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        transform: Matrix4.identity()..scale(scale),
+        transform: Matrix4.diagonal3Values(scale, scale, 1.0),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         decoration: BoxDecoration(
           color: bg,
@@ -561,6 +561,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
                 ),
               ),
             ),
+            // ignore: use_null_aware_elements
             if (trailing != null) trailing,
           ],
         ),

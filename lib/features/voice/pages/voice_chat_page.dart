@@ -16,7 +16,12 @@ import '../widgets/voice_message_feed.dart';
 
 class VoiceChatPage extends ConsumerStatefulWidget {
   final VoidCallback onBack;
-  const VoiceChatPage({super.key, required this.onBack});
+
+  /// Khi `true`, ẩn header riêng (back/Sumadi/reconnect) vì được nhúng trong
+  /// [MascotAiPage] — page cha đã có thanh tiêu đề + toggle Voice/Chat.
+  final bool embedded;
+
+  const VoiceChatPage({super.key, required this.onBack, this.embedded = false});
 
   @override
   ConsumerState<VoiceChatPage> createState() => _VoiceChatPageState();
@@ -34,6 +39,7 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
 
   final List<VoiceChatMessage> _messages = [];
 
+  bool _disposing = false;
   bool _listening = false;
   bool _joining = false;
   bool _connected = false;
@@ -60,6 +66,7 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
 
   @override
   void dispose() {
+    _disposing = true;
     unawaited(_teardownRealtime());
     _ctl.dispose();
     super.dispose();
@@ -96,7 +103,7 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
       } catch (_) {}
 
       if (!mounted) return;
-      setState(() => _statusText = 'Đang tạo phiên OpenAI Realtime…');
+      setState(() => _statusText = 'Đang tạo phiên trò chuyện với Sumadi…');
 
       final session = await MascotLiveApi.instance.createSession(
         displayName: 'Mascoteach learner',
@@ -164,7 +171,7 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
         _connected = true;
         _listening = true;
         _micEnabled = true;
-        _statusText = 'Đã nối OpenAI Realtime • Sumadi đang nghe';
+        _statusText = 'Sumadi đang nghe';
       });
       _appendSystemMessage('Đã kết nối giọng nói thời gian thực với Sumadi.');
     } catch (error) {
@@ -206,7 +213,7 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
       if (!mounted) return;
       switch (state) {
         case RTCPeerConnectionState.RTCPeerConnectionStateConnecting:
-          setState(() => _statusText = 'Đang kết nối OpenAI Realtime…');
+          setState(() => _statusText = 'Đang kết nối với Sumadi…');
           break;
         case RTCPeerConnectionState.RTCPeerConnectionStateConnected:
           setState(() {
@@ -214,16 +221,14 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
             _remoteJoined = true;
             _statusText = _speaking
                 ? 'Sumadi đang phản hồi…'
-                : (_micEnabled
-                      ? 'Đã nối OpenAI Realtime • Sumadi đang nghe'
-                      : 'Mic đang tắt');
+                : (_micEnabled ? 'Sumadi đang nghe' : 'Mic đang tắt');
           });
           break;
         case RTCPeerConnectionState.RTCPeerConnectionStateDisconnected:
-          setState(() => _statusText = 'Kết nối Realtime bị gián đoạn');
+          setState(() => _statusText = 'Kết nối bị gián đoạn');
           break;
         case RTCPeerConnectionState.RTCPeerConnectionStateFailed:
-          setState(() => _statusText = 'Kết nối Realtime thất bại');
+          setState(() => _statusText = 'Kết nối thất bại');
           break;
         case RTCPeerConnectionState.RTCPeerConnectionStateClosed:
           setState(() => _statusText = 'Đã đóng phiên giọng nói');
@@ -241,9 +246,7 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
           _listening = _micEnabled;
           _statusText = _speaking
               ? 'Sumadi đang phản hồi…'
-              : (_micEnabled
-                    ? 'Đã nối OpenAI Realtime • Sumadi đang nghe'
-                    : 'Mic đang tắt');
+              : (_micEnabled ? 'Sumadi đang nghe' : 'Mic đang tắt');
         });
       }
     };
@@ -287,7 +290,7 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
                       ? (event['error'] as Map)['message']
                       : null)
                   ?.toString() ??
-              'OpenAI Realtime gặp lỗi';
+              'Sumadi gặp lỗi';
           setState(() {
             _errorText = message;
             _statusText = message;
@@ -323,7 +326,7 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
     _localStream = null;
     _remoteStream = null;
 
-    if (mounted) {
+    if (mounted && !_disposing) {
       setState(() {
         _connected = false;
         _listening = false;
@@ -581,9 +584,9 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
     final t = ref.watch(themeProvider);
     final statusText = _errorText ?? _statusText;
     final aiSubtitle = _session == null
-        ? 'Realtime chưa sẵn sàng'
+        ? 'Sumadi chưa sẵn sàng'
         : _remoteJoined
-        ? 'OpenAI Realtime đã nối với Sumadi'
+        ? 'Đã kết nối với Sumadi'
         : 'Đang chờ Sumadi phản hồi';
 
     return Scaffold(
@@ -592,43 +595,44 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
         child: SafeArea(
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(18, 6, 18, 0),
-                child: Row(
-                  children: [
-                    _CircleBtn(
-                      icon: Icons.arrow_back_ios_new,
-                      onTap: _closeVoicePage,
-                    ),
-                    const Spacer(),
-                    Column(
-                      children: [
-                        const Text(
-                          'Sumadi',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
+              if (!widget.embedded)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 6, 18, 0),
+                  child: Row(
+                    children: [
+                      _CircleBtn(
+                        icon: Icons.arrow_back_ios_new,
+                        onTap: _closeVoicePage,
+                      ),
+                      const Spacer(),
+                      Column(
+                        children: [
+                          const Text(
+                            'Sumadi',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
-                        ),
-                        Text(
-                          aiSubtitle,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
+                          Text(
+                            aiSubtitle,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    _CircleBtn(
-                      icon: _remoteJoined ? Icons.graphic_eq : Icons.bolt,
-                      onTap: _joining ? () {} : _startRealtimeSession,
-                    ),
-                  ],
+                        ],
+                      ),
+                      const Spacer(),
+                      _CircleBtn(
+                        icon: _remoteJoined ? Icons.graphic_eq : Icons.bolt,
+                        onTap: _joining ? () {} : _startRealtimeSession,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
               Expanded(
                 child: Center(
                   child: Column(
@@ -724,17 +728,6 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
                           ),
                         ),
                       ),
-                      if (_session != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'Model: ${_session!.model}',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
                       const SizedBox(height: 14),
                       SizedBox(
                         height: 40,

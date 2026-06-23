@@ -8,17 +8,22 @@ class ApiConstants {
 
   /// Base URL của Backend.
   ///
-  /// Dev (đang dùng):    http://api-dev.mascoteach.com (swagger ở /swagger)
-  /// Production:         https://api.mascoteach.com
+  /// Dev (mặc định, đang test): https://api-dev.mascoteach.com (swagger ở /swagger)
+  /// Production:                https://api.mascoteach.com
   ///
-  /// Nếu muốn test với backend chạy local, đổi sang một trong các URL sau:
-  /// - Android emulator:  'https://10.0.2.2:7108'   (10.0.2.2 = host machine)
-  /// - Web (Chrome):      'https://localhost:7108'
-  /// - Thiết bị thật:     'https://192.168.x.x:7108' (IP LAN máy host)
-  // LƯU Ý: phải dùng httpS — server dev (openresty) trả 301 redirect nếu gọi
+  /// Mặc định DEV để mọi build (debug/release, ai build cũng vậy) trỏ cùng 1
+  /// môi trường, tránh app nhảy dev↔prod. Lên prod thì override không cần sửa code:
+  ///   flutter build apk --release --dart-define=API_BASE_URL=https://api.mascoteach.com
+  // LƯU Ý: phải dùng httpS — server (openresty) trả 301 redirect nếu gọi
   // http thường, và Dio không tự follow redirect cho POST → login nhận về
   // trang HTML 301 thay vì token.
-  static const String baseUrl = 'https://api-dev.mascoteach.com';
+  static const String _apiBaseUrlOverride = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: '',
+  );
+  static String get baseUrl => _apiBaseUrlOverride.trim().isNotEmpty
+      ? _apiBaseUrlOverride.trim()
+      : 'https://api-dev.mascoteach.com';
   static const String _aiBaseUrlOverride = String.fromEnvironment(
     'AI_BASE_URL',
     defaultValue: '',
@@ -51,9 +56,23 @@ class ApiConstants {
   /// Lấy ở Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs
   /// → loại "Web application". KHÔNG dùng Android client ID.
   ///
-  /// TODO: thay placeholder bằng giá trị thật trước khi build release.
-  static const String googleWebClientId =
-      'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+  /// Truyền lúc build qua --dart-define (không hardcode/commit):
+  ///   --dart-define=GOOGLE_WEB_CLIENT_ID=xxx.apps.googleusercontent.com
+  /// Phải KHỚP với `Google:ClientId` của backend (BE validate audience idToken).
+  static const String googleWebClientId = String.fromEnvironment(
+    'GOOGLE_WEB_CLIENT_ID',
+    defaultValue:
+        '121016526145-j2qd1503r84l9ior8gjdnkult9h8o9p2.apps.googleusercontent.com',
+  );
+
+  /// Bật/tắt nút "Đăng nhập với Google".
+  ///
+  /// ĐANG TẮT cho v1 vì cả mobile (`googleWebClientId`) lẫn backend
+  /// (`Google:ClientId` trong appsettings) đều còn placeholder — bấm sẽ fail.
+  /// Bật lại khi đã: (1) tạo OAuth Web Client ID trên Google Cloud,
+  /// (2) điền KHỚP vào mobile + backend, (3) đăng ký SHA-1 keystore release.
+  static final bool googleSignInEnabled =
+      googleWebClientId != 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
 
   // ============ User ============
   static const String userMe = '/api/User/me';

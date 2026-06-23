@@ -1,61 +1,94 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
-import '../widgets/voice_mode_view.dart';
+import '../../../core/theme/theme_provider.dart';
+import '../../voice/pages/voice_chat_page.dart';
 import '../widgets/chat_mode_view.dart';
 
 /// Entry point cho tính năng Mascot AI.
-/// Mặc định mở **Voice mode** (tính năng chính: trò chuyện thật).
-/// Có toggle ở top-right để chuyển sang Chat text.
-class MascotAiPage extends StatefulWidget {
-  const MascotAiPage({super.key});
+/// Mặc định mở **Voice mode** (tính năng chính: trò chuyện thật — OpenAI Realtime).
+/// Có toggle ở top-right để chuyển sang Chat text (cũng nối API thật).
+///
+/// [onBack]: khi mở dạng overlay (StudentShell) thì truyền để đóng Mascot.
+/// Khi dùng làm tab (TeacherShell) thì để null — không hiện nút back.
+class MascotAiPage extends ConsumerStatefulWidget {
+  final VoidCallback? onBack;
+  const MascotAiPage({super.key, this.onBack});
 
   @override
-  State<MascotAiPage> createState() => _MascotAiPageState();
+  ConsumerState<MascotAiPage> createState() => _MascotAiPageState();
 }
 
-class _MascotAiPageState extends State<MascotAiPage> {
+class _MascotAiPageState extends ConsumerState<MascotAiPage> {
   bool _voiceMode = true;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: _voiceMode ? AppColors.brandNavy : AppColors.surface,
-      child: Column(
-        children: [
-          // Top bar tối giản với toggle Voice/Chat
-          Container(
-            padding: const EdgeInsets.fromLTRB(20, 12, 12, 12),
-            color: _voiceMode ? AppColors.brandNavy : Colors.white,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _voiceMode ? 'Trò chuyện với Mascot' : 'Chat với Mascot',
-                    style: TextStyle(
-                      color: _voiceMode ? Colors.white : AppColors.ink,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
+    final t = ref.watch(themeProvider);
+    // Voice mode: nền navy (VoiceChatPage luôn dùng gradient tối).
+    // Chat mode: theo theme người dùng (Clean/GameShow).
+    final barColor = _voiceMode ? AppColors.brandNavy : t.surface;
+    final fgColor = _voiceMode ? Colors.white : t.ink;
+
+    return Scaffold(
+      backgroundColor: _voiceMode ? AppColors.brandNavy : t.appBg,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // Top bar: [back?] tiêu đề + toggle Voice/Chat
+            Container(
+              padding: EdgeInsets.fromLTRB(
+                widget.onBack != null ? 4 : 20,
+                8,
+                12,
+                8,
+              ),
+              color: barColor,
+              child: Row(
+                children: [
+                  if (widget.onBack != null)
+                    IconButton(
+                      icon: Icon(
+                        Icons.arrow_back_ios_new,
+                        size: 20,
+                        color: fgColor,
+                      ),
+                      onPressed: widget.onBack,
+                    ),
+                  Expanded(
+                    child: Text(
+                      _voiceMode ? 'Trò chuyện với Mascot' : 'Chat với Mascot',
+                      style: TextStyle(
+                        color: fgColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
-                ),
-                _ModeToggle(
-                  voiceMode: _voiceMode,
-                  onChanged: (v) => setState(() => _voiceMode = v),
-                ),
-              ],
+                  _ModeToggle(
+                    voiceMode: _voiceMode,
+                    onChanged: (v) => setState(() => _voiceMode = v),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 350),
-              switchInCurve: Curves.easeOut,
-              child: _voiceMode
-                  ? const VoiceModeView(key: ValueKey('voice'))
-                  : const ChatModeView(key: ValueKey('chat')),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 350),
+                switchInCurve: Curves.easeOut,
+                child: _voiceMode
+                    ? VoiceChatPage(
+                        key: const ValueKey('voice'),
+                        embedded: true,
+                        onBack: widget.onBack ?? () {},
+                      )
+                    : const ChatModeView(key: ValueKey('chat')),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

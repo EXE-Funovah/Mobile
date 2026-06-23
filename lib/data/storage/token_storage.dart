@@ -7,7 +7,6 @@ class TokenStorage {
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(
-      encryptedSharedPreferences: false,
       resetOnError: true,
     ),
   );

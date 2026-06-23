@@ -5,6 +5,7 @@ import '../../../core/theme/theme_provider.dart';
 import '../../../core/theme/theme_tokens.dart';
 import '../../../data/models/user.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../auth/providers/user_profile_provider.dart';
 import '../../quiz/providers/user_stats_provider.dart';
 import '../../shared/widgets/themed_card.dart';
 
@@ -30,6 +31,7 @@ class StudentProfileTab extends ConsumerWidget {
     final auth = ref.watch(authProvider);
     final name = auth.displayName ?? 'Học sinh';
     final roleLabel = _roleLabel(auth.role);
+    final avatarUrl = ref.watch(userProfileProvider).valueOrNull?.avatarUrl;
     final s = ref.watch(userStatsProvider).valueOrNull;
     final hours = ((s?.totalLearningMinutes ?? 0) / 60).toStringAsFixed(
       (s?.totalLearningMinutes ?? 0) % 60 == 0 ? 0 : 1,
@@ -71,14 +73,17 @@ class StudentProfileTab extends ConsumerWidget {
                 ],
               ),
               alignment: Alignment.center,
-              child: Text(
-                name.isNotEmpty ? name[0].toUpperCase() : 'M',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 36,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
+              clipBehavior: Clip.antiAlias,
+              child: (avatarUrl != null && avatarUrl.isNotEmpty)
+                  ? Image.network(
+                      avatarUrl,
+                      width: 92,
+                      height: 92,
+                      fit: BoxFit.cover,
+                      // Lỗi tải ảnh → fallback chữ cái đầu
+                      errorBuilder: (_, _, _) => _avatarInitial(name),
+                    )
+                  : _avatarInitial(name),
             ),
             const SizedBox(height: 14),
             Text(
@@ -347,6 +352,17 @@ class StudentProfileTab extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _avatarInitial(String name) {
+    return Text(
+      name.isNotEmpty ? name[0].toUpperCase() : 'M',
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 36,
+        fontWeight: FontWeight.w800,
+      ),
     );
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../shared/widgets/decorative_blob.dart';
 import '../../shared/widgets/google_button.dart';
@@ -131,12 +132,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  GoogleButton(onPressed: _googleSignIn),
-                                  const SizedBox(height: 16),
-                                  const OrDivider(
-                                    label: 'HOẶC ĐĂNG NHẬP VỚI EMAIL',
-                                  ),
-                                  const SizedBox(height: 16),
+                                  if (ApiConstants.googleSignInEnabled) ...[
+                                    GoogleButton(onPressed: _googleSignIn),
+                                    const SizedBox(height: 16),
+                                    const OrDivider(
+                                      label: 'HOẶC ĐĂNG NHẬP VỚI EMAIL',
+                                    ),
+                                    const SizedBox(height: 16),
+                                  ],
                                   TextFormField(
                                     controller: _emailCtl,
                                     keyboardType: TextInputType.emailAddress,
@@ -158,8 +161,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                       if (v == null || v.trim().isEmpty) {
                                         return 'Nhập email';
                                       }
-                                      if (!v.contains('@'))
+                                      if (!v.contains('@')) {
                                         return 'Email không hợp lệ';
+                                      }
                                       return null;
                                     },
                                   ),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../shared/widgets/student_bottom_nav.dart';
-import '../../voice/pages/voice_chat_page.dart';
+import '../../mascot_chat/pages/mascot_ai_page.dart';
 import 'student_home_tab.dart';
 import 'student_library_tab.dart';
 import 'student_profile_tab.dart';
@@ -26,7 +26,7 @@ class _StudentShellState extends ConsumerState<StudentShell> {
     final t = ref.watch(themeProvider);
 
     if (_voiceOpen) {
-      return VoiceChatPage(onBack: () => setState(() => _voiceOpen = false));
+      return MascotAiPage(onBack: () => setState(() => _voiceOpen = false));
     }
 
     Widget tabBody;
