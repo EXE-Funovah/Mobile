@@ -12,6 +12,7 @@ import '../../student/providers/settings_provider.dart';
 import '../../shared/widgets/ring.dart';
 import '../../shared/widgets/section_head.dart';
 import '../../shared/widgets/themed_card.dart';
+import '../upload_gate.dart';
 
 class StudentHomeTab extends ConsumerWidget {
   final VoidCallback onOpenVoice;
@@ -26,7 +27,8 @@ class StudentHomeTab extends ConsumerWidget {
     final xp = stats?.xp ?? 0;
     // Mục tiêu hôm nay = tổng phút của các attempt trong ngày
     final today = DateTime.now();
-    final goalMinutesDone = (ref.watch(weekAttemptsProvider).valueOrNull ?? [])
+    final goalMinutesDone =
+        (ref.watch(weekAttemptsProvider).valueOrNull ?? [])
             .where((a) {
               final c = a.completedAt?.toLocal();
               return c != null &&
@@ -374,7 +376,7 @@ class StudentHomeTab extends ConsumerWidget {
         SectionHead(
           title: 'Tài liệu của bạn',
           action: '+ Tải lên',
-          onAction: () => context.push('/student/upload'),
+          onAction: () => openUploadOrUpgrade(context, ref),
         ),
         _buildDocsList(context, ref, t),
       ],
@@ -402,7 +404,7 @@ class StudentHomeTab extends ConsumerWidget {
             SizedBox(
               width: 150,
               child: ThemedCard(
-                onTap: () => context.push('/student/upload'),
+                onTap: () => openUploadOrUpgrade(context, ref),
                 padding: const EdgeInsets.all(14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -527,7 +529,7 @@ class StudentHomeTab extends ConsumerWidget {
 
     if (items.isEmpty) {
       return ThemedCard(
-        onTap: () => context.push('/student/upload'),
+        onTap: () => openUploadOrUpgrade(context, ref),
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [

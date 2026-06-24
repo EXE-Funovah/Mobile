@@ -78,6 +78,10 @@ class ApiConstants {
   static const String userMe = '/api/User/me';
   static const String users = '/api/User';
 
+  // ============ Billing (PayOS) ============
+  static const String billingCreatePaymentLink =
+      '/api/Billing/create-payment-link';
+
   // ============ Quiz ============
   static const String quizzes = '/api/Quiz';
 

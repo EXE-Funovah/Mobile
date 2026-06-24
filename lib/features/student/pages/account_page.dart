@@ -10,7 +10,9 @@ import '../../../data/api/document_api.dart';
 import '../../../data/api/user_api.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/providers/user_profile_provider.dart';
+import '../../quiz/providers/documents_provider.dart';
 import '../../shared/widgets/themed_card.dart';
+import '../upload_gate.dart';
 
 class AccountPage extends ConsumerWidget {
   const AccountPage({super.key});
@@ -63,9 +65,10 @@ class _AccountBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ref.watch(themeProvider);
-    const freemiumLimit = 50;
-    final docsUsed = user.documentsProcessed;
-    final pct = (docsUsed / freemiumLimit).clamp(0.0, 1.0);
+    final premium = isPremiumTier(user.subscriptionTier);
+    // Đếm số tài liệu ACTIVE thật (không phải documentsProcessed tích luỹ).
+    final docsUsed = ref.watch(documentsProvider).items.length;
+    final pct = premium ? 1.0 : (docsUsed / kFreemiumDocLimit).clamp(0.0, 1.0);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(22, 8, 22, 32),
@@ -192,7 +195,9 @@ class _AccountBody extends ConsumerWidget {
                   ),
                   const Spacer(),
                   Text(
-                    '$docsUsed / $freemiumLimit tài liệu',
+                    premium
+                        ? 'Không giới hạn'
+                        : '$docsUsed / $kFreemiumDocLimit tài liệu',
                     style: TextStyle(
                       color: t.inkMuted,
                       fontWeight: FontWeight.w700,
