@@ -8,12 +8,12 @@ class ApiConstants {
 
   /// Base URL của Backend.
   ///
-  /// Dev (mặc định, đang test): https://api-dev.mascoteach.com (swagger ở /swagger)
-  /// Production:                https://api.mascoteach.com
+  /// Production (mặc định): https://api.mascoteach.com
+  /// Dev:                   https://api-dev.mascoteach.com (swagger ở /swagger)
   ///
-  /// Mặc định DEV để mọi build (debug/release, ai build cũng vậy) trỏ cùng 1
-  /// môi trường, tránh app nhảy dev↔prod. Lên prod thì override không cần sửa code:
-  ///   flutter build apk --release --dart-define=API_BASE_URL=https://api.mascoteach.com
+  /// Mặc định PROD để build release (CH Play) trỏ đúng server thật.
+  /// Test dev thì override không cần sửa code:
+  ///   flutter run --dart-define=API_BASE_URL=https://api-dev.mascoteach.com
   // LƯU Ý: phải dùng httpS — server (openresty) trả 301 redirect nếu gọi
   // http thường, và Dio không tự follow redirect cho POST → login nhận về
   // trang HTML 301 thay vì token.
@@ -23,7 +23,7 @@ class ApiConstants {
   );
   static String get baseUrl => _apiBaseUrlOverride.trim().isNotEmpty
       ? _apiBaseUrlOverride.trim()
-      : 'https://api-dev.mascoteach.com';
+      : 'https://api.mascoteach.com';
   static const String _aiBaseUrlOverride = String.fromEnvironment(
     'AI_BASE_URL',
     defaultValue: '',
