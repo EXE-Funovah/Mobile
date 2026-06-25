@@ -35,13 +35,13 @@ class _Feature {
 const _premiumFeatures = <_Feature>[
   _Feature(
     Icons.all_inclusive,
-    'Tạo câu hỏi không giới hạn',
-    'Gói Free: 5 câu mỗi ngày',
+    'Tài liệu không giới hạn',
+    'Gói Free: tối đa 3 tài liệu',
   ),
   _Feature(
     Icons.mic,
-    'Trò chuyện giọng nói thả ga',
-    'Gói Free: 10 phút mỗi ngày',
+    'Trò chuyện giọng nói với Sumadi',
+    'Luyện nói cùng gia sư AI thả ga',
   ),
   _Feature(
     Icons.auto_awesome,
@@ -53,11 +53,7 @@ const _premiumFeatures = <_Feature>[
     'Treasure Hunt cùng cả lớp',
     'Thi đấu theo PIN, bảng xếp hạng',
   ),
-  _Feature(
-    Icons.bolt,
-    'Ưu tiên xử lý nhanh hơn',
-    'Tạo câu hỏi nhanh gấp đôi',
-  ),
+  _Feature(Icons.bolt, 'Ưu tiên xử lý nhanh hơn', 'Tạo câu hỏi nhanh gấp đôi'),
 ];
 
 class PricingPage extends ConsumerStatefulWidget {
@@ -74,8 +70,8 @@ class _PricingPageState extends ConsumerState<PricingPage> {
   Widget build(BuildContext context) {
     final t = ref.watch(themeProvider);
     final user = ref.watch(userProfileProvider).valueOrNull;
-    final isFree = (user?.subscriptionTier ?? 'Freemium').toLowerCase() ==
-        'freemium';
+    final isFree =
+        (user?.subscriptionTier ?? 'Freemium').toLowerCase() == 'freemium';
     final perMonth = _yearly ? _planYearPerMonth : _planMonth;
 
     return Scaffold(
@@ -107,9 +103,7 @@ class _PricingPageState extends ConsumerState<PricingPage> {
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      _CloseButton(onTap: () => context.pop()),
-                    ],
+                    children: [_CloseButton(onTap: () => context.pop())],
                   ),
                 ),
 
@@ -193,10 +187,7 @@ class _PricingPageState extends ConsumerState<PricingPage> {
                         const SizedBox(height: 14),
 
                         // Price card
-                        _PriceCard(
-                          yearly: _yearly,
-                          perMonth: perMonth,
-                        ),
+                        _PriceCard(yearly: _yearly, perMonth: perMonth),
                         const SizedBox(height: 18),
 
                         // Features
@@ -252,10 +243,7 @@ class _Hero extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           Center(
-            child: Image.asset(
-              'assets/images/mascot-speaking.png',
-              width: 118,
-            )
+            child: Image.asset('assets/images/mascot-speaking.png', width: 118)
                 .animate(onPlay: (c) => c.repeat(reverse: true))
                 .moveY(duration: 2800.ms, begin: 0, end: -8),
           ),
@@ -340,10 +328,7 @@ class _BillingToggle extends ConsumerWidget {
             if (showSave) ...[
               const SizedBox(width: 7),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 7,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: t.ok,
                   borderRadius: BorderRadius.circular(999),
@@ -605,10 +590,7 @@ class _CurrentPlanNote extends StatelessWidget {
                   const TextSpan(text: 'Bạn đang dùng '),
                   TextSpan(
                     text: 'gói Free',
-                    style: TextStyle(
-                      color: t.ink,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: TextStyle(color: t.ink, fontWeight: FontWeight.w800),
                   ),
                   const TextSpan(text: ' — nâng cấp để bỏ mọi giới hạn.'),
                 ],
@@ -663,10 +645,7 @@ class _StickyCta extends ConsumerWidget {
                   SizedBox(width: 8),
                   Text(
                     'Dùng thử Premium 7 ngày',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
                   ),
                 ],
               ),
@@ -701,9 +680,7 @@ class _CloseButton extends ConsumerWidget {
         width: 38,
         height: 38,
         decoration: BoxDecoration(
-          color: t.isDark
-              ? Colors.white.withValues(alpha: 0.12)
-              : t.surface,
+          color: t.isDark ? Colors.white.withValues(alpha: 0.12) : t.surface,
           borderRadius: BorderRadius.circular(12),
           boxShadow: t.isDark ? null : t.cardShadow,
         ),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_provider.dart';
 import '../../shared/widgets/decorative_blob.dart';
 import '../../shared/widgets/google_button.dart';
 import '../../shared/widgets/gradient_button.dart';
@@ -103,6 +104,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
+    final t = ref.watch(themeProvider);
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -144,8 +146,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                     controller: _emailCtl,
                                     keyboardType: TextInputType.emailAddress,
                                     textInputAction: TextInputAction.next,
-                                    style: const TextStyle(
-                                      color: AppColors.ink,
+                                    style: TextStyle(
+                                      color: t.ink,
                                       fontWeight: FontWeight.w600,
                                       fontSize: 15,
                                     ),
@@ -173,8 +175,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                     obscureText: _obscure,
                                     textInputAction: TextInputAction.done,
                                     onFieldSubmitted: (_) => _onSubmit(),
-                                    style: const TextStyle(
-                                      color: AppColors.ink,
+                                    style: TextStyle(
+                                      color: t.ink,
                                       fontWeight: FontWeight.w600,
                                       fontSize: 15,
                                     ),

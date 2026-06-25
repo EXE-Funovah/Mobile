@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../core/theme/theme_tokens.dart';
+import '../../../data/api/billing_api.dart';
 import '../../shared/widgets/themed_card.dart';
 import 'pricing_page.dart';
 
-enum PaymentMethod { card, momo, bank }
+/// Phương thức thanh toán. Hiện chỉ PayOS (chuyển khoản/QR ngân hàng) chạy thật;
+/// Thẻ + MoMo để preview ("Sắp có"), chưa tích hợp.
+enum PaymentMethod { payos, card, momo }
 
 class PaymentPage extends ConsumerStatefulWidget {
-  final String planId;
+  final String planId; // 'monthly' | 'yearly'
   const PaymentPage({super.key, required this.planId});
 
   @override
@@ -19,141 +21,35 @@ class PaymentPage extends ConsumerStatefulWidget {
 }
 
 class _PaymentPageState extends ConsumerState<PaymentPage> {
-  PaymentMethod _method = PaymentMethod.card;
+  PaymentMethod _method =
+      PaymentMethod.payos; // mặc định PayOS (cái duy nhất chạy)
   bool _processing = false;
 
-  // Card fields
-  final _cardNumber = TextEditingController();
-  final _cardName = TextEditingController();
-  final _cardExp = TextEditingController();
-  final _cardCvv = TextEditingController();
+  String get _planCode =>
+      widget.planId == 'yearly' ? 'PRO_YEARLY' : 'PRO_MONTHLY';
 
-  // MoMo
-  final _momoPhone = TextEditingController();
-
-  @override
-  void dispose() {
-    _cardNumber.dispose();
-    _cardName.dispose();
-    _cardExp.dispose();
-    _cardCvv.dispose();
-    _momoPhone.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit(PricingPlan plan) async {
+  Future<void> _pay() async {
+    if (_processing || _method != PaymentMethod.payos) return;
     setState(() => _processing = true);
-    // UI mock thuần — backend đã gỡ endpoint upgrade vì chưa có cổng
-    // thanh toán + authorization model thật (xem .codex/skills/
-    // mascoteach-gamification.md). Tier KHÔNG đổi cho tới khi BE có
-    // payment flow thật.
-    await Future.delayed(const Duration(milliseconds: 1800));
-    if (!mounted) return;
-    setState(() => _processing = false);
-    _showSuccessSheet(plan);
-  }
-
-  void _showSuccessSheet(PricingPlan plan) {
-    final t = ref.read(themeProvider);
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: t.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 78,
-              height: 78,
-              decoration: BoxDecoration(
-                color: t.ok.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.check_rounded, color: t.ok, size: 44),
-            ).animate().scale(
-                  duration: 400.ms,
-                  curve: Curves.elasticOut,
-                  begin: const Offset(0.4, 0.4),
-                  end: const Offset(1, 1),
-                ),
-            const SizedBox(height: 16),
-            Text(
-              'Thanh toán thành công!',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: t.ink,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Bạn đã nâng cấp lên ${plan.name}.\nChúc bạn học vui cùng Sumadi 🦝',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-                color: t.ink2,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: t.surfaceSunken,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.info_outline, size: 16, color: t.inkMuted),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Mock payment — gói đã kích hoạt, chưa trừ tiền thật',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                      color: t.inkMuted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 22),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  // Pop payment + pricing → quay về account
-                  context.go('/student/account');
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: t.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: const Text(
-                  'Hoàn tất',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    try {
+      final url = await BillingApi.instance.createPaymentLink(_planCode);
+      final ok = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!ok) throw Exception('Không mở được trang thanh toán PayOS.');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
   }
 
   @override
@@ -200,7 +96,7 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
               children: [
-                // Order summary
+                // ===== Đơn hàng =====
                 _sectionTitle(t, 'Đơn hàng'),
                 ThemedCard(
                   padding: const EdgeInsets.all(16),
@@ -258,11 +154,6 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
                       const SizedBox(height: 12),
                       Divider(color: t.line, height: 1),
                       const SizedBox(height: 12),
-                      _summaryRow(t, 'Tạm tính',
-                          formatVndPublic(plan.totalIfPaidNow)),
-                      const SizedBox(height: 6),
-                      _summaryRow(t, 'VAT', 'Đã bao gồm'),
-                      const SizedBox(height: 10),
                       Row(
                         children: [
                           Text(
@@ -289,62 +180,71 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
                 ),
                 const SizedBox(height: 18),
 
-                // Payment method
+                // ===== Phương thức thanh toán =====
                 _sectionTitle(t, 'Phương thức thanh toán'),
+                _methodTile(
+                  t,
+                  PaymentMethod.payos,
+                  icon: Icons.qr_code_2,
+                  iconColor: t.primary,
+                  title: 'Chuyển khoản / QR ngân hàng',
+                  subtitle: 'Quét QR hoặc chuyển khoản qua PayOS',
+                ),
+                const SizedBox(height: 10),
                 _methodTile(
                   t,
                   PaymentMethod.card,
                   icon: Icons.credit_card,
-                  iconColor: t.primary,
+                  iconColor: t.inkMuted,
                   title: 'Thẻ tín dụng / ghi nợ',
                   subtitle: 'Visa, Mastercard, JCB',
+                  comingSoon: true,
                 ),
                 const SizedBox(height: 10),
                 _methodTile(
                   t,
                   PaymentMethod.momo,
-                  iconWidget: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFA50064),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'MoMo',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ),
+                  icon: Icons.account_balance_wallet,
+                  iconColor: t.inkMuted,
                   title: 'Ví MoMo',
-                  subtitle: 'Thanh toán nhanh qua app MoMo',
-                ),
-                const SizedBox(height: 10),
-                _methodTile(
-                  t,
-                  PaymentMethod.bank,
-                  icon: Icons.account_balance,
-                  iconColor: t.accent,
-                  title: 'Chuyển khoản ngân hàng',
-                  subtitle: 'VietinBank, Vietcombank, ACB, …',
+                  subtitle: 'Thanh toán qua app MoMo',
+                  comingSoon: true,
                 ),
 
                 const SizedBox(height: 18),
 
-                // Form đặc thù từng method
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
-                  child: _methodForm(t),
+                // ===== Ghi chú PayOS =====
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: t.primarySoft,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 18, color: t.primary),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Bạn sẽ được chuyển sang cổng PayOS để quét QR hoặc '
+                          'chuyển khoản. Tài khoản tự động nâng cấp sau khi thanh '
+                          'toán thành công (thường 1–2 phút).',
+                          style: TextStyle(
+                            color: t.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
 
-          // Sticky pay button
+          // ===== Nút thanh toán =====
           Container(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
             decoration: BoxDecoration(
@@ -357,7 +257,7 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: _processing ? null : () => _submit(plan),
+                  onPressed: _processing ? null : _pay,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: t.primary,
                     foregroundColor: Colors.white,
@@ -399,360 +299,114 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
     );
   }
 
-  Widget _methodForm(AppTokens t) {
-    switch (_method) {
-      case PaymentMethod.card:
-        return Column(
-          key: const ValueKey('card'),
-          children: [
-            ThemedCard(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _input(
-                    t,
-                    label: 'Số thẻ',
-                    hint: '1234 5678 9012 3456',
-                    controller: _cardNumber,
-                    keyboard: TextInputType.number,
-                    formatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      _CardNumberFormatter(),
-                      LengthLimitingTextInputFormatter(19),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _input(
-                    t,
-                    label: 'Tên chủ thẻ',
-                    hint: 'NGUYEN VAN A',
-                    controller: _cardName,
-                    formatters: [_UpperCaseTextFormatter()],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _input(
-                          t,
-                          label: 'MM/YY',
-                          hint: '12/27',
-                          controller: _cardExp,
-                          keyboard: TextInputType.number,
-                          formatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            _ExpFormatter(),
-                            LengthLimitingTextInputFormatter(5),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _input(
-                          t,
-                          label: 'CVV',
-                          hint: '123',
-                          controller: _cardCvv,
-                          obscure: true,
-                          keyboard: TextInputType.number,
-                          formatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(4),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Icon(Icons.lock_outline, size: 14, color: t.inkMuted),
-                      const SizedBox(width: 5),
-                      Text(
-                        'Bảo mật theo chuẩn PCI-DSS',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: t.inkMuted,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        );
-
-      case PaymentMethod.momo:
-        return Column(
-          key: const ValueKey('momo'),
-          children: [
-            ThemedCard(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _input(
-                    t,
-                    label: 'Số điện thoại MoMo',
-                    hint: '09xx xxx xxx',
-                    controller: _momoPhone,
-                    keyboard: TextInputType.phone,
-                    formatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(10),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFE6F2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(
-                          Icons.smartphone,
-                          color: Color(0xFFA50064),
-                          size: 18,
-                        ),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Sau khi bấm "Thanh toán", mở app MoMo để xác nhận.',
-                            style: TextStyle(
-                              color: Color(0xFFA50064),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        );
-
-      case PaymentMethod.bank:
-        return Column(
-          key: const ValueKey('bank'),
-          children: [
-            ThemedCard(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Chuyển khoản đến',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: t.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _bankRow(t, 'Ngân hàng', 'VietinBank — CN HCM'),
-                  _bankRow(t, 'Số tài khoản', '101 0888 1234'),
-                  _bankRow(t, 'Chủ tài khoản', 'CONG TY MASCOTEACH'),
-                  _bankRow(t, 'Nội dung', 'MTC ${DateTime.now().millisecondsSinceEpoch ~/ 1000}'),
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: t.primarySoft,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, size: 18, color: t.primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Tài khoản sẽ nâng cấp tự động sau khi xác nhận thanh toán (1–10 phút).',
-                            style: TextStyle(
-                              color: t.primary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        );
-    }
-  }
-
-  Widget _bankRow(AppTokens t, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 110,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: t.inkMuted,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: SelectableText(
-                    value,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                      color: t.ink,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: value));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Đã copy: $value'),
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
-                  },
-                  icon: Icon(Icons.copy, size: 16, color: t.primary),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _input(
-    AppTokens t, {
-    required String label,
-    required String hint,
-    required TextEditingController controller,
-    bool obscure = false,
-    TextInputType? keyboard,
-    List<TextInputFormatter>? formatters,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: obscure,
-      keyboardType: keyboard,
-      inputFormatters: formatters,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: t.line),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: t.line),
-        ),
-      ),
-    );
-  }
-
   Widget _methodTile(
     AppTokens t,
     PaymentMethod method, {
-    IconData? icon,
-    Color? iconColor,
-    Widget? iconWidget,
+    required IconData icon,
+    required Color iconColor,
     required String title,
     required String subtitle,
+    bool comingSoon = false,
   }) {
     final selected = _method == method;
-    return GestureDetector(
-      onTap: () => setState(() => _method = method),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: t.surface,
-          borderRadius: BorderRadius.circular(t.cardRadius),
-          border: Border.all(
-            color: selected ? t.primary : t.line,
-            width: selected ? 2 : 1,
+    final enabled = !comingSoon;
+    return Opacity(
+      opacity: enabled ? 1 : 0.6,
+      child: GestureDetector(
+        onTap: enabled ? () => setState(() => _method = method) : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: t.surface,
+            borderRadius: BorderRadius.circular(t.cardRadius),
+            border: Border.all(
+              color: selected && enabled ? t.primary : t.line,
+              width: selected && enabled ? 2 : 1,
+            ),
+            boxShadow: selected && enabled ? null : t.cardShadow,
           ),
-          boxShadow: selected ? null : t.cardShadow,
-        ),
-        child: Row(
-          children: [
-            if (iconWidget != null)
-              iconWidget
-            else
+          child: Row(
+            children: [
               Container(
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: (iconColor ?? t.primary).withValues(alpha: 0.15),
+                  color: iconColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, color: iconColor, size: 20),
               ),
-            const SizedBox(width: 13),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: t.ink,
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: t.ink,
+                            ),
+                          ),
+                        ),
+                        if (comingSoon) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: t.surfaceSunken,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Sắp có',
+                              style: TextStyle(
+                                color: t.inkMuted,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: t.inkMuted,
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: t.inkMuted,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                color: selected ? t.primary : Colors.transparent,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: selected ? t.primary : t.inkMuted,
-                  width: 2,
+                  ],
                 ),
               ),
-              child: selected
-                  ? const Icon(Icons.check, color: Colors.white, size: 14)
-                  : null,
-            ),
-          ],
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: selected && enabled ? t.primary : Colors.transparent,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selected && enabled ? t.primary : t.inkMuted,
+                    width: 2,
+                  ),
+                ),
+                child: selected && enabled
+                    ? const Icon(Icons.check, color: Colors.white, size: 14)
+                    : null,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -770,85 +424,6 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
           letterSpacing: 0.4,
         ),
       ),
-    );
-  }
-
-  Widget _summaryRow(AppTokens t, String label, String value) {
-    return Row(
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: t.inkMuted,
-          ),
-        ),
-        const Spacer(),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            color: t.ink2,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ============ Input formatters ============
-
-class _CardNumberFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final digits = newValue.text.replaceAll(' ', '');
-    final buf = StringBuffer();
-    for (var i = 0; i < digits.length; i++) {
-      if (i > 0 && i % 4 == 0) buf.write(' ');
-      buf.write(digits[i]);
-    }
-    final s = buf.toString();
-    return TextEditingValue(
-      text: s,
-      selection: TextSelection.collapsed(offset: s.length),
-    );
-  }
-}
-
-class _ExpFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final digits = newValue.text.replaceAll('/', '');
-    String s;
-    if (digits.length >= 3) {
-      s = '${digits.substring(0, 2)}/${digits.substring(2)}';
-    } else {
-      s = digits;
-    }
-    return TextEditingValue(
-      text: s,
-      selection: TextSelection.collapsed(offset: s.length),
-    );
-  }
-}
-
-class _UpperCaseTextFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    return TextEditingValue(
-      text: newValue.text.toUpperCase(),
-      selection: newValue.selection,
     );
   }
 }

@@ -7,6 +7,7 @@ import '../../../data/models/document.dart';
 import '../../quiz/providers/documents_provider.dart';
 import '../../quiz/providers/quizzes_provider.dart';
 import '../../shared/widgets/themed_card.dart';
+import '../upload_gate.dart';
 
 class StudentLibraryTab extends ConsumerStatefulWidget {
   const StudentLibraryTab({super.key});
@@ -111,7 +112,7 @@ class _StudentLibraryTabState extends ConsumerState<StudentLibraryTab> {
     return [
       // upload prompt
       GestureDetector(
-        onTap: () => context.push('/student/upload'),
+        onTap: () => openUploadOrUpgrade(context, ref),
         child: CustomPaint(
           painter: _DashedPainter(color: t.line, radius: t.cardRadius),
           child: Container(
