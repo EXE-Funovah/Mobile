@@ -7,18 +7,36 @@ import 'package:flutter/foundation.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/utils/network_error_formatter.dart';
 import '../models/mascot_live_session.dart';
+import '../storage/token_storage.dart';
 
 class MascotLiveApi {
-  MascotLiveApi._();
+  MascotLiveApi._({Future<String?> Function()? tokenReader})
+    : _tokenReader = tokenReader ?? TokenStorage.instance.getToken;
   static final MascotLiveApi instance = MascotLiveApi._();
+  final Future<String?> Function() _tokenReader;
 
-  Dio _client() {
+  @visibleForTesting
+  factory MascotLiveApi.forTesting({
+    required Future<String?> Function() tokenReader,
+  }) => MascotLiveApi._(tokenReader: tokenReader);
+
+  @visibleForTesting
+  Future<Map<String, String>> authJsonHeaders() async {
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    final token = (await _tokenReader())?.trim();
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
+
+  Future<Dio> _client() async {
     final dio = Dio(
       BaseOptions(
         baseUrl: ApiConstants.aiBaseUrl,
         connectTimeout: const Duration(seconds: 20),
         receiveTimeout: const Duration(seconds: 30),
-        headers: {'Content-Type': 'application/json'},
+        headers: await authJsonHeaders(),
         validateStatus: (status) => status != null && status < 500,
       ),
     );
@@ -41,7 +59,7 @@ class MascotLiveApi {
     String? voice,
   }) async {
     try {
-      final res = await _client().post(
+      final res = await (await _client()).post(
         ApiConstants.mascotLiveSession,
         data: {
           'displayName': displayName,
@@ -66,7 +84,7 @@ class MascotLiveApi {
 
   Future<MascotLiveSession> getSession(String sessionId) async {
     try {
-      final res = await _client().get(
+      final res = await (await _client()).get(
         ApiConstants.mascotLiveSessionById(sessionId),
       );
       return _parseSessionResponse(
@@ -85,7 +103,7 @@ class MascotLiveApi {
 
   Future<MascotLiveSession> endSession(String sessionId) async {
     try {
-      final res = await _client().post(
+      final res = await (await _client()).post(
         ApiConstants.mascotLiveEndSession(sessionId),
       );
       return _parseSessionResponse(
@@ -154,7 +172,7 @@ class MascotLiveApi {
     List<Map<String, String>> history = const [],
   }) async {
     try {
-      final res = await _client().post(
+      final res = await (await _client()).post(
         ApiConstants.aiChat,
         data: {'message': message, 'history': history},
       );
