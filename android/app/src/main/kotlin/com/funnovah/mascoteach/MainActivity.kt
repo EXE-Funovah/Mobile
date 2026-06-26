@@ -1,4 +1,4 @@
-package com.funovah.mascoteach.mascoteach_mobile
+package com.funnovah.mascoteach
 
 import io.flutter.embedding.android.FlutterActivity
 

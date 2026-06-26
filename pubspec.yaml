@@ -67,8 +67,8 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: "assets/images/mascot-head.png"
-  # Adaptive icon cho Android 8.0+: nền xanh dương + ảnh foreground
-  adaptive_icon_background: "#1B3A6B"
-  adaptive_icon_foreground: "assets/images/mascot-head.png"
+  image_path: "assets/images/launcher-icon.png"
+  # Adaptive icon cho Android 8.0+: nền kem nhạt + ảnh foreground
+  adaptive_icon_background: "#FDEFD2"
+  adaptive_icon_foreground: "assets/images/launcher-icon.png"
   min_sdk_android: 21

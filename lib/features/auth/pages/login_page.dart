@@ -8,7 +8,6 @@ import '../../../core/theme/theme_provider.dart';
 import '../../shared/widgets/decorative_blob.dart';
 import '../../shared/widgets/google_button.dart';
 import '../../shared/widgets/gradient_button.dart';
-import '../../shared/widgets/mascot_avatar.dart';
 import '../../shared/widgets/or_divider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/session_refresh.dart';
@@ -303,10 +302,20 @@ class _HeroHeader extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    MascotAvatar(
-                      size: 100,
-                      bgColor: Colors.white.withValues(alpha: 0.18),
-                      showGlow: true,
+                    Container(
+                      width: 100,
+                      height: 100,
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8CD5FD),
+                        shape: BoxShape.circle,
+                        boxShadow: AppShadows.glow,
+                      ),
+                      padding: const EdgeInsets.all(10),
+                      child: Image.asset(
+                        'assets/images/login-mascot.png',
+                        fit: BoxFit.contain,
+                      ),
                     ).animate().scale(
                       duration: 600.ms,
                       curve: Curves.elasticOut,

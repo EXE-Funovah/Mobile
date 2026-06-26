@@ -168,7 +168,7 @@ class StudentHomeTab extends ConsumerWidget {
                       right: -6,
                       bottom: -14,
                       child: Image.asset(
-                        'assets/images/mascot-speaking.png',
+                        'assets/images/main-mascot-full.png',
                         width: 132,
                       ),
                     ),
