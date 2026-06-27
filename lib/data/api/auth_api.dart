@@ -96,9 +96,9 @@ class AuthApi {
 
   /// JWT có dạng `xxx.yyy.zzz` (base64url) — không khoảng trắng, không HTML.
   /// Chặn case server trả trang HTML (301 redirect…) bị lưu nhầm làm token.
-  static bool _looksLikeJwt(String s) =>
-      RegExp(r'^[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+$')
-          .hasMatch(s.trim());
+  static bool _looksLikeJwt(String s) => RegExp(
+    r'^[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+$',
+  ).hasMatch(s.trim());
 
   String? _extractToken(dynamic data) {
     if (data is String) {

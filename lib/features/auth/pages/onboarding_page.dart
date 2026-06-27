@@ -18,13 +18,13 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
 
   final _slides = const [
     (
-      img: 'assets/images/mascot-speaking.png',
+      img: 'assets/images/main-mascot-full.png',
       big: 'Học bằng giọng nói',
       sub:
           'Trò chuyện trực tiếp với Sumadi — hỏi gì cũng được, như có gia sư riêng bên cạnh.',
     ),
     (
-      img: 'assets/images/mascot-idle.png',
+      img: 'assets/images/main-mascot-full.png',
       big: 'Tài liệu thành câu hỏi',
       sub:
           'Tải lên bài học, Sumadi biến nó thành bộ câu trắc nghiệm để bạn ôn thật nhanh.',

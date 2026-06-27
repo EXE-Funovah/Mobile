@@ -726,7 +726,7 @@ class _UploadPageState extends ConsumerState<UploadPage> {
                     ),
                   ),
                 ),
-                Image.asset('assets/images/mascot-speaking.png', width: 132)
+                Image.asset('assets/images/main-mascot-full.png', width: 132)
                     .animate(onPlay: (c) => c.repeat(reverse: true))
                     .moveY(duration: 2400.ms, begin: 0, end: -8),
               ],

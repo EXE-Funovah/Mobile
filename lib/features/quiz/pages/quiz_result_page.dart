@@ -85,7 +85,7 @@ class QuizResultPage extends ConsumerWidget {
                                 ),
                               ),
                               Image.asset(
-                                    'assets/images/mascot-speaking.png',
+                                    'assets/images/main-mascot-full.png',
                                     width: 150,
                                   )
                                   .animate(

@@ -13,13 +13,13 @@ final userStatsProvider = FutureProvider<UserStatsDto>((ref) async {
 /// Dùng: `await ref.read(submitQuizAttemptProvider)(request);`
 final submitQuizAttemptProvider =
     Provider<Future<QuizAttemptDto> Function(QuizAttemptSubmitRequest)>((ref) {
-  return (request) async {
-    final result = await QuizAttemptApi.instance.submit(request);
-    ref.invalidate(userStatsProvider);
-    ref.invalidate(weekAttemptsProvider);
-    return result;
-  };
-});
+      return (request) async {
+        final result = await QuizAttemptApi.instance.submit(request);
+        ref.invalidate(userStatsProvider);
+        ref.invalidate(weekAttemptsProvider);
+        return result;
+      };
+    });
 
 /// Lịch sử attempt 7 ngày gần nhất (cho week chart sau này).
 final weekAttemptsProvider = FutureProvider<List<QuizAttemptDto>>((ref) async {

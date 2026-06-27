@@ -311,7 +311,10 @@ class _QuizPreviewPageState extends ConsumerState<QuizPreviewPage> {
                         color: t.ok.withValues(alpha: 0.12),
                       ),
                     ),
-                    Image.asset('assets/images/mascot-idle.png', width: 128),
+                    Image.asset(
+                      'assets/images/main-mascot-full.png',
+                      width: 128,
+                    ),
                     Positioned(
                       top: 6,
                       right: 14,

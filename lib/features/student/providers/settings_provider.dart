@@ -73,6 +73,7 @@ class SettingsController extends StateNotifier<SettingsState> {
   }
 }
 
-final settingsProvider = StateNotifierProvider<SettingsController, SettingsState>(
-  (ref) => SettingsController(),
-);
+final settingsProvider =
+    StateNotifierProvider<SettingsController, SettingsState>(
+      (ref) => SettingsController(),
+    );

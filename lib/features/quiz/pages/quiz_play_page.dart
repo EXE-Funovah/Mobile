@@ -45,10 +45,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
     // Ghi lại answer nếu có id thật từ API
     if (q.questionId > 0 && idx < q.optionIds.length) {
       _answers.add(
-        QuizAnswerSubmit(
-          questionId: q.questionId,
-          optionId: q.optionIds[idx],
-        ),
+        QuizAnswerSubmit(questionId: q.questionId, optionId: q.optionIds[idx]),
       );
     }
   }

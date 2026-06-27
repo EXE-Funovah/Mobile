@@ -696,7 +696,7 @@ class _VoiceChatPageState extends ConsumerState<VoiceChatPage>
                                 child:
                                     Image.asset(
                                           (_remoteJoined || _speaking)
-                                              ? 'assets/images/mascot-speaking.png'
+                                              ? 'assets/images/main-mascot-full.png'
                                               : 'assets/images/mascot-head.png',
                                         )
                                         .animate(

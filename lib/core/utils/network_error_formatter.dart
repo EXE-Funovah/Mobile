@@ -1,9 +1,6 @@
 import 'package:dio/dio.dart';
 
-String formatNetworkError(
-  Object error, {
-  required String fallbackMessage,
-}) {
+String formatNetworkError(Object error, {required String fallbackMessage}) {
   if (error is DioException) {
     final statusCode = error.response?.statusCode;
     final serverMessage = _extractPayloadMessage(error.response?.data);

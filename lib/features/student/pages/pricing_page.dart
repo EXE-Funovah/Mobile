@@ -243,7 +243,7 @@ class _Hero extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           Center(
-            child: Image.asset('assets/images/mascot-speaking.png', width: 118)
+            child: Image.asset('assets/images/main-mascot-full.png', width: 118)
                 .animate(onPlay: (c) => c.repeat(reverse: true))
                 .moveY(duration: 2800.ms, begin: 0, end: -8),
           ),
