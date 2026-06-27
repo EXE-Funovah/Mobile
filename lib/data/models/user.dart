@@ -1,4 +1,4 @@
-enum UserRole { student, teacher, parent, unknown }
+enum UserRole { student, teacher, parent, admin, unknown }
 
 UserRole roleFromString(String? s) {
   switch ((s ?? '').toLowerCase()) {
@@ -8,6 +8,8 @@ UserRole roleFromString(String? s) {
       return UserRole.teacher;
     case 'parent':
       return UserRole.parent;
+    case 'admin':
+      return UserRole.admin;
     default:
       return UserRole.unknown;
   }

@@ -19,6 +19,7 @@ import '../../features/student/pages/payment_page.dart';
 import '../../features/student/pages/pricing_page.dart';
 import '../../features/student/pages/settings_page.dart';
 import '../../features/student/pages/student_shell.dart';
+import '../../features/admin/pages/admin_shell.dart';
 
 final onboardedProvider = FutureProvider<bool>((_) async {
   final sp = await SharedPreferences.getInstance();
@@ -113,6 +114,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) =>
             const Scaffold(body: Center(child: Text('Parent UI sắp ra mắt'))),
       ),
+      GoRoute(path: '/admin', builder: (_, _) => const AdminShell()),
     ],
   );
 });
@@ -145,6 +147,8 @@ class _SplashGate extends ConsumerWidget {
 
 String _homeFor(UserRole role) {
   switch (role) {
+    case UserRole.admin:
+      return '/admin';
     case UserRole.teacher:
       return '/teacher';
     case UserRole.parent:

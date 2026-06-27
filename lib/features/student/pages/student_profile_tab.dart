@@ -20,6 +20,8 @@ class StudentProfileTab extends ConsumerWidget {
         return 'Giáo viên';
       case UserRole.parent:
         return 'Phụ huynh';
+      case UserRole.admin:
+        return 'Quản trị viên';
       case UserRole.unknown:
         return 'Người dùng';
     }
