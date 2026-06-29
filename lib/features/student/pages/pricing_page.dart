@@ -243,7 +243,7 @@ class _Hero extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           Center(
-            child: Image.asset('assets/images/mascot-speaking.png', width: 118)
+            child: Image.asset('assets/images/live-mascot-speaking-head.png', width: 118)
                 .animate(onPlay: (c) => c.repeat(reverse: true))
                 .moveY(duration: 2800.ms, begin: 0, end: -8),
           ),
@@ -728,3 +728,4 @@ PricingPlan? findPlanById(String id) {
 }
 
 String formatVndPublic(int amount) => '${_vnd(amount)}đ';
+

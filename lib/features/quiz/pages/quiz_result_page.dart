@@ -85,7 +85,7 @@ class QuizResultPage extends ConsumerWidget {
                                 ),
                               ),
                               Image.asset(
-                                    'assets/images/mascot-speaking.png',
+                                    'assets/images/live-mascot-speaking-head.png',
                                     width: 150,
                                   )
                                   .animate(
@@ -433,3 +433,4 @@ class _ConfettiState extends State<_Confetti>
     );
   }
 }
+

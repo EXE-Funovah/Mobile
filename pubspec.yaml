@@ -55,7 +55,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  # Generate launcher icon từ mascot-head.png cho mọi mipmap size
+  # Generate launcher icon from the dedicated launcher asset for all mipmap sizes
   flutter_launcher_icons: ^0.14.1
 
 flutter:

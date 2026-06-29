@@ -83,6 +83,16 @@ class AuthApi {
     }
   }
 
+  Future<void> resendVerification({required String email}) async {
+    final res = await _dio.post(
+      ApiConstants.authResendVerification,
+      data: {'email': email},
+    );
+    if (res.statusCode != null && res.statusCode! >= 300) {
+      throw _extractError(res);
+    }
+  }
+
   /// Gửi mã reset password tới email user.
   Future<void> forgotPassword({required String email}) async {
     final res = await _dio.post(

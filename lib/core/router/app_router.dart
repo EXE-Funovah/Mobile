@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/user.dart';
+import '../../features/auth/pages/email_verification_pending_page.dart';
 import '../../features/auth/pages/login_page.dart';
 import '../../features/auth/pages/onboarding_page.dart';
 import '../../features/auth/pages/register_page.dart';
@@ -39,7 +40,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
 
-      const authRoutes = {'/login', '/register', '/onboarding'};
+      const authRoutes = {
+        '/login',
+        '/register',
+        '/onboarding',
+        '/verify-email-pending',
+      };
       if (!loggedIn && !authRoutes.contains(loc)) return '/login';
       if (loggedIn && authRoutes.contains(loc)) return _homeFor(auth.role);
       return null;
@@ -49,6 +55,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/onboarding', builder: (_, _) => const OnboardingPage()),
       GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
       GoRoute(path: '/register', builder: (_, _) => const RegisterPage()),
+      GoRoute(
+        path: '/verify-email-pending',
+        builder: (_, state) => EmailVerificationPendingPage(
+          email: state.uri.queryParameters['email'] ?? '',
+        ),
+      ),
       GoRoute(path: '/student', builder: (_, _) => const StudentShell()),
       GoRoute(path: '/student/account', builder: (_, _) => const AccountPage()),
       GoRoute(

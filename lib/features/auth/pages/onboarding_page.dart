@@ -18,19 +18,19 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
 
   final _slides = const [
     (
-      img: 'assets/images/mascot-speaking.png',
+      img: 'assets/images/live-mascot-speaking-head.png',
       big: 'Học bằng giọng nói',
       sub:
           'Trò chuyện trực tiếp với Sumadi — hỏi gì cũng được, như có gia sư riêng bên cạnh.',
     ),
     (
-      img: 'assets/images/mascot-idle.png',
+      img: 'assets/images/live-mascot-head.png',
       big: 'Tài liệu thành câu hỏi',
       sub:
           'Tải lên bài học, Sumadi biến nó thành bộ câu trắc nghiệm để bạn ôn thật nhanh.',
     ),
     (
-      img: 'assets/images/mascot-head.png',
+      img: 'assets/images/live-mascot-head.png',
       big: 'Học đều mỗi ngày',
       sub:
           'Giữ chuỗi streak, ghi điểm XP và lên cấp cùng người bạn nhỏ của bạn.',
@@ -261,3 +261,4 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     );
   }
 }
+

@@ -45,6 +45,8 @@ class ApiConstants {
   static const String authLogin = '/api/Auth/login';
   static const String authRegister = '/api/Auth/register';
   static const String authGoogleLogin = '/api/Auth/google-login';
+  static const String authResendVerification =
+      '/api/Auth/resend-verification';
   static const String authForgotPassword = '/api/Auth/forgot-password';
   static const String authResetPassword = '/api/Auth/reset-password';
 

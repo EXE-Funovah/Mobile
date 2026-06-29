@@ -64,7 +64,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       // Xoá state cũ để load lại tài liệu/quiz/stats của user vừa login
       resetUserScopedProviders(ref);
     } else {
-      final err = ref.read(authProvider).error ?? 'Đăng nhập thất bại';
+      final err = _friendlyLoginError(
+        ref.read(authProvider).error ?? 'Đăng nhập thất bại',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(err),
@@ -98,6 +100,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       // nếu err null nghĩa là user cancel — không show gì
     }
     // Khi thành công router refreshListenable sẽ tự redirect
+  }
+
+  String _friendlyLoginError(String err) {
+    if (err.toLowerCase().contains('verify your email')) {
+      return 'Tài khoản của bạn đã được tạo nhưng chưa xác thực email. Vui lòng mở email để xác thực trước khi đăng nhập.';
+    }
+    return err;
   }
 
   @override

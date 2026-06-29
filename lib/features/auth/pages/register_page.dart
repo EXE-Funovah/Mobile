@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../shared/widgets/google_button.dart';
@@ -42,7 +43,11 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           role: _role,
         );
     if (!mounted) return;
-    if (!ok) {
+    if (ok) {
+      context.go(
+        '/verify-email-pending?email=${Uri.encodeComponent(_email.text.trim())}',
+      );
+    } else {
       final err = ref.read(authProvider).error ?? 'Đăng ký thất bại';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

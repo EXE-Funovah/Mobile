@@ -537,6 +537,8 @@ class _SettingTile extends StatelessWidget {
                 Expanded(
                   child: Text(
                     label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w600,
@@ -545,12 +547,19 @@ class _SettingTile extends StatelessWidget {
                   ),
                 ),
                 if (value != null) ...[
-                  Text(
-                    value!,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: t.inkMuted,
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Text(
+                      value!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: t.inkMuted,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   if (trailingIcon != null) const SizedBox(width: 4),

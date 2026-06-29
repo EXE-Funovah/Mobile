@@ -3,7 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_theme.dart';
 
 /// Avatar mascot có animation float (lên xuống nhẹ nhàng).
-/// Dùng ảnh `assets/images/mascot-head.png` đã tải từ frontend.
+/// Dùng ảnh `assets/images/live-mascot-head.png` đã tải từ frontend.
 class MascotAvatar extends StatelessWidget {
   final double size;
   final bool bounce;
@@ -29,7 +29,7 @@ class MascotAvatar extends StatelessWidget {
         boxShadow: showGlow ? AppShadows.glow : null,
       ),
       padding: EdgeInsets.all(size * 0.1),
-      child: Image.asset('assets/images/mascot-head.png', fit: BoxFit.contain),
+      child: Image.asset('assets/images/live-mascot-head.png', fit: BoxFit.contain),
     );
 
     if (!bounce) return mascot;
@@ -39,3 +39,4 @@ class MascotAvatar extends StatelessWidget {
         .moveY(duration: 2400.ms, begin: 0, end: -8, curve: Curves.easeInOut);
   }
 }
+
