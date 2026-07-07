@@ -6,7 +6,10 @@ import '../../../core/theme/theme_tokens.dart';
 import '../../../data/models/document.dart';
 import '../../quiz/providers/documents_provider.dart';
 import '../../quiz/providers/quizzes_provider.dart';
+import '../../flashcard/models/flashcard.dart';
+import '../../flashcard/providers/flashcard_providers.dart';
 import '../../shared/widgets/themed_card.dart';
+import '../providers/nav_providers.dart';
 import '../upload_gate.dart';
 
 class StudentLibraryTab extends ConsumerStatefulWidget {
@@ -16,11 +19,10 @@ class StudentLibraryTab extends ConsumerStatefulWidget {
 }
 
 class _StudentLibraryTabState extends ConsumerState<StudentLibraryTab> {
-  String _tab = 'docs';
-
   @override
   Widget build(BuildContext context) {
     final t = ref.watch(themeProvider);
+    final tab = ref.watch(libraryTabProvider);
     return ListView(
       padding: const EdgeInsets.fromLTRB(22, 10, 22, 18),
       children: [
@@ -68,23 +70,30 @@ class _StudentLibraryTabState extends ConsumerState<StudentLibraryTab> {
           ),
           child: Row(
             children: [
-              _tabBtn('docs', 'Tài liệu', t),
+              _tabBtn('docs', 'Tài liệu', t, tab),
               const SizedBox(width: 6),
-              _tabBtn('quiz', 'Câu hỏi', t),
+              _tabBtn('quiz', 'Câu hỏi', t, tab),
+              const SizedBox(width: 6),
+              _tabBtn('flash', 'Flashcard', t, tab),
             ],
           ),
         ),
         const SizedBox(height: 14),
-        if (_tab == 'docs') ..._docsList(t) else ..._quizList(t),
+        if (tab == 'docs')
+          ..._docsList(t)
+        else if (tab == 'quiz')
+          ..._quizList(t)
+        else
+          ..._flashList(t),
       ],
     );
   }
 
-  Widget _tabBtn(String id, String label, AppTokens t) {
-    final active = _tab == id;
+  Widget _tabBtn(String id, String label, AppTokens t, String tab) {
+    final active = tab == id;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _tab = id),
+        onTap: () => ref.read(libraryTabProvider.notifier).state = id,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           height: 38,
@@ -436,6 +445,193 @@ class _StudentLibraryTabState extends ConsumerState<StudentLibraryTab> {
         ),
       );
     }).toList();
+  }
+
+  List<Widget> _flashList(AppTokens t) {
+    final async = ref.watch(flashcardSetsProvider);
+    return async.when(
+      loading: () => const [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 40),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ],
+      error: (err, _) => [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Column(
+            children: [
+              Icon(Icons.cloud_off, color: t.inkMuted, size: 38),
+              const SizedBox(height: 8),
+              Text(
+                err.toString().replaceFirst('Exception: ', ''),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: t.ink2, fontSize: 13),
+              ),
+              const SizedBox(height: 10),
+              TextButton.icon(
+                onPressed: () => ref.invalidate(flashcardSetsProvider),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Thử lại'),
+              ),
+            ],
+          ),
+        ),
+      ],
+      data: (sets) {
+        if (sets.isEmpty) {
+          return [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 30),
+              child: Column(
+                children: [
+                  Icon(Icons.layers_outlined, color: t.inkMuted, size: 38),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Chưa có bộ flashcard nào',
+                    style: TextStyle(
+                      color: t.ink2,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    'Mở một tài liệu và chọn "Tạo flashcard từ tài liệu"',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: t.inkMuted, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ];
+        }
+        return List.generate(sets.length, (i) => _flashCard(t, sets[i], i));
+      },
+    );
+  }
+
+  Widget _flashCard(AppTokens t, FlashcardSet s, int index) {
+    final tint = index % 4;
+    final done = s.count > 0 && s.learned >= s.count;
+    final pct = s.count == 0 ? 0.0 : (s.learned / s.count).clamp(0.0, 1.0);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 11),
+      child: ThemedCard(
+        onTap: () => context.push(
+          '/student/flashcard-study?quizId=${s.id}'
+          '&title=${Uri.encodeQueryComponent(s.title)}',
+        ),
+        padding: const EdgeInsets.all(15),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: t.tints[tint],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.layers_rounded,
+                    color: t.tintInks[tint],
+                    size: 23,
+                  ),
+                ),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        s.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: t.ink,
+                        ),
+                      ),
+                      Text(
+                        '${s.count} thẻ ghi nhớ',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: t.inkMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (s.isNew)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: t.accentSoft,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.auto_awesome, size: 13, color: t.accent),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Mới',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                            color: t.accent,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: t.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.play_arrow_rounded,
+                      color: Colors.white,
+                      size: 15,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: pct,
+                minHeight: 7,
+                backgroundColor: t.surfaceSunken,
+                valueColor: AlwaysStoppedAnimation(done ? t.ok : t.primary),
+              ),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              s.learned == 0 ? 'Chưa học' : '${s.learned}/${s.count} đã thuộc',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: done ? t.ok : t.inkMuted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

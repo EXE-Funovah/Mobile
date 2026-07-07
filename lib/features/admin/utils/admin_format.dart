@@ -34,6 +34,52 @@ String _fix(num v, int d) {
   return s.replaceAll('.', ',');
 }
 
+/// Map nhãn tiếng Việt cho enum backend.
+const planLabelMap = {'PRO_MONTHLY': 'Gói tháng', 'PRO_YEARLY': 'Gói năm'};
+const quizStatusMap = {
+  'AI_Drafted': 'AI nháp',
+  'Teacher_Approved': 'GV duyệt',
+  'Published': 'Đã xuất bản',
+};
+const sessStatusMap = {
+  'Waiting': 'Chờ',
+  'Active': 'Đang chạy',
+  'Ended': 'Kết thúc',
+};
+const orderStatusMap = {
+  'Pending': 'Chờ thanh toán',
+  'Paid': 'Đã thanh toán',
+  'Cancelled': 'Đã huỷ',
+  'Expired': 'Hết hạn',
+  'Failed': 'Thất bại',
+};
+
+String planName(String code) => planLabelMap[code] ?? code;
+String quizStatusName(String s) => quizStatusMap[s] ?? s;
+String sessStatusName(String s) => sessStatusMap[s] ?? s;
+String orderStatusName(String s) => orderStatusMap[s] ?? s;
+
+/// Tiền VND đầy đủ có dấu chấm nghìn + đơn vị đ.
+String vndFull(num n) => '${vnd(n)}đ';
+
+/// ISO/DateOnly → "dd/MM/yyyy" (rỗng nếu không parse được).
+String fmtDate(String? iso) {
+  if (iso == null || iso.isEmpty) return '—';
+  final d = DateTime.tryParse(iso)?.toLocal();
+  if (d == null) return iso;
+  return '${d.day.toString().padLeft(2, '0')}/'
+      '${d.month.toString().padLeft(2, '0')}/${d.year}';
+}
+
+/// ISO → "dd/MM/yyyy · HH:mm".
+String fmtDateTime(String? iso) {
+  if (iso == null || iso.isEmpty) return '—';
+  final d = DateTime.tryParse(iso)?.toLocal();
+  if (d == null) return iso;
+  return '${fmtDate(iso)} · ${d.hour.toString().padLeft(2, '0')}:'
+      '${d.minute.toString().padLeft(2, '0')}';
+}
+
 /// Format giá trị KPI theo `format` từ backend.
 String formatKpi(AdminKpi k) {
   switch (k.format) {

@@ -4,6 +4,7 @@ import '../../../core/theme/theme_provider.dart';
 import '../providers/admin_providers.dart';
 import 'admin_overview_tab.dart';
 import 'admin_revenue_tab.dart';
+import 'admin_content_tab.dart';
 import 'admin_accounts_tab.dart';
 import 'admin_settings_tab.dart';
 
@@ -16,7 +17,13 @@ class AdminShell extends ConsumerStatefulWidget {
 
 class _AdminShellState extends ConsumerState<AdminShell> {
   int _tab = 0;
-  static const _titles = ['Tổng quan', 'Doanh thu', 'Tài khoản', 'Cài đặt'];
+  static const _titles = [
+    'Tổng quan',
+    'Doanh thu',
+    'Nội dung',
+    'Tài khoản',
+    'Cài đặt',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +31,7 @@ class _AdminShellState extends ConsumerState<AdminShell> {
     const pages = [
       AdminOverviewTab(),
       AdminRevenueTab(),
+      AdminContentTab(),
       AdminAccountsTab(),
       AdminSettingsTab(),
     ];
@@ -106,6 +114,11 @@ class _AdminShellState extends ConsumerState<AdminShell> {
             icon: Icon(Icons.account_balance_wallet_outlined),
             selectedIcon: Icon(Icons.account_balance_wallet_rounded),
             label: 'Doanh thu',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.layers_outlined),
+            selectedIcon: Icon(Icons.layers_rounded),
+            label: 'Nội dung',
           ),
           NavigationDestination(
             icon: Icon(Icons.people_outline),

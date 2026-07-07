@@ -14,6 +14,9 @@ import '../../features/quiz/pages/quiz_play_page.dart';
 import '../../features/quiz/pages/quiz_preview_page.dart';
 import '../../features/quiz/pages/quiz_result_page.dart';
 import '../../features/quiz/pages/upload_page.dart';
+import '../../features/flashcard/pages/flashcard_preview_page.dart';
+import '../../features/flashcard/pages/flashcard_study_page.dart';
+import '../../features/quiz/pages/generate_quiz_from_doc_page.dart';
 import '../../features/student/pages/account_page.dart';
 import '../../features/student/pages/payment_page.dart';
 import '../../features/student/pages/pricing_page.dart';
@@ -72,6 +75,32 @@ final routerProvider = Provider<GoRouter>((ref) {
           // Không có args (vd. deep link) thì quay về upload để bắt đầu lại.
           if (args is! QuizPreviewArgs) return const UploadPage();
           return QuizPreviewPage(args: args);
+        },
+      ),
+      GoRoute(
+        path: '/student/create-quiz',
+        builder: (ctx, st) {
+          final args = st.extra;
+          if (args is! GenerateQuizArgs) return const StudentShell();
+          return GenerateQuizFromDocPage(args: args);
+        },
+      ),
+      GoRoute(
+        path: '/student/flashcard-preview',
+        builder: (ctx, st) {
+          final args = st.extra;
+          if (args is! FlashcardPreviewArgs) return const StudentShell();
+          return FlashcardPreviewPage(args: args);
+        },
+      ),
+      GoRoute(
+        path: '/student/flashcard-study',
+        builder: (ctx, st) {
+          final qidRaw = st.uri.queryParameters['quizId'];
+          final quizId = qidRaw == null ? null : int.tryParse(qidRaw);
+          final title = st.uri.queryParameters['title'] ?? 'Flashcard';
+          if (quizId == null) return const StudentShell();
+          return FlashcardStudyPage(quizId: quizId, title: title);
         },
       ),
       GoRoute(

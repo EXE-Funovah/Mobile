@@ -41,21 +41,29 @@ class _OverviewBody extends StatelessWidget {
   const _OverviewBody({required this.t, required this.data});
 
   IconData _icon(String key) => switch (key) {
-    'users' => Icons.people_rounded,
-    'mau' => Icons.graphic_eq_rounded,
-    'mrr' => Icons.account_balance_wallet_rounded,
-    'conv' => Icons.adjust_rounded,
+    'totalUsers' => Icons.people_rounded,
+    'newUsers' => Icons.person_add_alt_1_rounded,
+    'activeUsers' => Icons.graphic_eq_rounded,
+    'paidRevenue' => Icons.account_balance_wallet_rounded,
     _ => Icons.insights_rounded,
   };
 
   @override
   Widget build(BuildContext context) {
-    final maxUsage = data.featureUsage.isEmpty
-        ? 1.0
-        : data.featureUsage
-              .map((e) => e.value)
-              .reduce((a, b) => a > b ? a : b)
-              .toDouble();
+    final revValues = data.paidRevenueSeries.map((e) => e.value).toList();
+    final totalPaid = revValues.fold<num>(0, (s, e) => s + e);
+
+    final subTotal = data.subscriptionDistribution.fold<double>(
+      0,
+      (s, e) => s + e.value.toDouble(),
+    );
+    final premium = data.subscriptionDistribution
+        .where((e) => e.label.toLowerCase().contains('premium') &&
+            !e.label.toLowerCase().contains('hết'))
+        .fold<double>(0, (s, e) => s + e.value.toDouble());
+    final premiumPct = subTotal > 0 ? premium / subTotal * 100 : 0;
+
+    final subColors = [t.inkMuted, t.ok, t.accent];
 
     return Column(
       children: [
@@ -73,59 +81,167 @@ class _OverviewBody extends StatelessWidget {
         ),
         const SizedBox(height: 14),
 
-        // MRR card
+        // Paid revenue series
         ThemedCard(
           padding: const EdgeInsets.all(15),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _cardTitle(t, 'Doanh thu định kỳ', 'MRR · 12 tháng'),
-              const SizedBox(height: 12),
-              MiniAreaChart(
-                values: data.mrrSeries.map((e) => e.value).toList(),
-                color: t.primary,
-                height: 130,
+              _cardTitle(t, 'Doanh thu đã thanh toán', '12 tháng gần nhất'),
+              const SizedBox(height: 4),
+              Text(
+                '${vndShort(totalPaid)}đ',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: t.ink,
+                ),
               ),
+              const SizedBox(height: 10),
+              MiniAreaChart(values: revValues, color: t.primary, height: 130),
               const SizedBox(height: 4),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: data.mrrSeries
-                    .where((e) => data.mrrSeries.indexOf(e) % 3 == 0)
-                    .map(
-                      (e) => Text(
-                        e.label,
-                        style: TextStyle(fontSize: 9.5, color: t.inkMuted),
-                      ),
-                    )
-                    .toList(),
+                children: [
+                  for (var i = 0; i < data.paidRevenueSeries.length; i += 3)
+                    Text(
+                      data.paidRevenueSeries[i].label,
+                      style: TextStyle(fontSize: 9.5, color: t.inkMuted),
+                    ),
+                ],
               ),
             ],
           ),
         ),
         const SizedBox(height: 14),
 
-        // Feature usage
-        ThemedCard(
-          padding: const EdgeInsets.all(15),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _cardTitle(t, 'Sử dụng tính năng', 'Tổng tích luỹ'),
-              const SizedBox(height: 8),
-              ...data.featureUsage.map(
-                (f) => HBar(
-                  label: f.label,
-                  valueText: compactNum(f.value),
-                  fraction: f.value / maxUsage,
-                  color: _color(f.color, t.primary),
-                  trackColor: t.surfaceSunken,
-                  labelColor: t.ink2,
+        // Subscription distribution donut
+        if (subTotal > 0)
+          ThemedCard(
+            padding: const EdgeInsets.all(15),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _cardTitle(t, 'Phân bổ gói', 'Freemium · Premium'),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    DonutChart(
+                      segments: [
+                        for (var i = 0;
+                            i < data.subscriptionDistribution.length;
+                            i++)
+                          (
+                            data.subscriptionDistribution[i].value,
+                            subColors[i % subColors.length],
+                          ),
+                      ],
+                      centerText:
+                          '${premiumPct.toStringAsFixed(1).replaceAll('.', ',')}%',
+                      centerSub: 'trả phí',
+                      centerTextColor: t.ink,
+                      centerSubColor: t.inkMuted,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          for (var i = 0;
+                              i < data.subscriptionDistribution.length;
+                              i++)
+                            _legendRow(
+                              t,
+                              subColors[i % subColors.length],
+                              data.subscriptionDistribution[i],
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+              ],
+            ),
+          ),
+        const SizedBox(height: 14),
+
+        _distributionCard(t, 'Người dùng theo vai trò', data.userDistribution),
+        const SizedBox(height: 14),
+        _distributionCard(t, 'Nội dung', data.contentTotals),
+        const SizedBox(height: 14),
+        _distributionCard(
+          t,
+          'Trạng thái thanh toán',
+          data.paymentStatusDistribution,
+        ),
+      ],
+    );
+  }
+
+  Widget _legendRow(AppTokens t, Color c, NamedValue v) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            v.label,
+            style: TextStyle(
+              fontSize: 12,
+              color: t.ink2,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Text(
+          vnd(v.value),
+          style: TextStyle(
+            fontSize: 12,
+            color: t.ink,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ],
+    ),
+  );
+
+  Widget _distributionCard(AppTokens t, String title, List<NamedValue> items) {
+    final max = items.isEmpty
+        ? 1.0
+        : items.map((e) => e.value).reduce((a, b) => a > b ? a : b).toDouble();
+    return ThemedCard(
+      padding: const EdgeInsets.all(15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: t.ink,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (items.isEmpty)
+            Text('Chưa có dữ liệu.', style: TextStyle(color: t.inkMuted))
+          else
+            ...items.map(
+              (f) => HBar(
+                label: f.label,
+                valueText: compactNum(f.value),
+                fraction: max == 0 ? 0 : f.value / max,
+                color: t.primary,
+                trackColor: t.surfaceSunken,
+                labelColor: t.ink2,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -206,13 +322,6 @@ Widget _cardTitle(AppTokens t, String title, String sub) => Column(
     ),
   ],
 );
-
-Color _color(String? hex, Color fallback) {
-  if (hex == null) return fallback;
-  final h = hex.replaceFirst('#', '');
-  final v = int.tryParse(h.length == 6 ? 'FF$h' : h, radix: 16);
-  return v == null ? fallback : Color(v);
-}
 
 class _Loading extends StatelessWidget {
   const _Loading();

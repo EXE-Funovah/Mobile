@@ -23,11 +23,23 @@ class QuizPreviewArgs {
   });
 }
 
-/// Xem trước bộ câu hỏi AI tạo, cho xoá câu chưa ưng, rồi mới **Xuất bản**.
-///
-/// Theo luồng web (QuizPreviewPage.jsx): quiz CHỈ được tạo trên backend khi
-/// bấm Xuất bản — createQuiz → createQuestion từng câu → updateQuiz
-/// status `Teacher_Approved` (badge "ĐÃ DUYỆT"). Trước đó chưa có gì lưu.
+/// Câu hỏi có thể chỉnh sửa trong màn xem trước (id ổn định cho widget key).
+class _EditableQuestion {
+  final int id;
+  String text;
+  List<_EditableOption> options;
+  _EditableQuestion({required this.id, required this.text, required this.options});
+}
+
+class _EditableOption {
+  final int id;
+  String text;
+  bool correct;
+  _EditableOption({required this.id, required this.text, required this.correct});
+}
+
+/// Xem trước bộ câu hỏi AI tạo — **sửa được** (giống web): chỉnh nội dung câu
+/// hỏi, sửa đáp án, chọn đáp án đúng, thêm/xoá câu, rồi mới **Xuất bản**.
 class QuizPreviewPage extends ConsumerStatefulWidget {
   final QuizPreviewArgs args;
   const QuizPreviewPage({super.key, required this.args});
@@ -37,26 +49,93 @@ class QuizPreviewPage extends ConsumerStatefulWidget {
 }
 
 class _QuizPreviewPageState extends ConsumerState<QuizPreviewPage> {
-  late final List<GeneratedQuestionDto> _questions = [...widget.args.questions];
+  late final List<_EditableQuestion> _questions;
+  int _nextId = 0;
   bool _publishing = false;
   bool _published = false;
   int? _publishedQuizId;
   String? _error;
 
+  @override
+  void initState() {
+    super.initState();
+    _questions = widget.args.questions.map((q) {
+      return _EditableQuestion(
+        id: _nextId++,
+        text: q.questionText,
+        options: q.options
+            .map(
+              (o) => _EditableOption(
+                id: _nextId++,
+                text: o.optionText,
+                correct: o.isCorrect,
+              ),
+            )
+            .toList(),
+      );
+    }).toList();
+    // Đảm bảo mỗi câu có đúng 1 đáp án đúng (AI đôi khi trả thiếu).
+    for (final q in _questions) {
+      if (!q.options.any((o) => o.correct) && q.options.isNotEmpty) {
+        q.options.first.correct = true;
+      }
+    }
+  }
+
+  /// Kiểm tra hợp lệ trước khi xuất bản (khớp validate backend cho MCQ).
+  String? _validate() {
+    if (_questions.isEmpty) return 'Cần ít nhất 1 câu hỏi.';
+    for (var i = 0; i < _questions.length; i++) {
+      final q = _questions[i];
+      final n = i + 1;
+      if (q.text.trim().isEmpty) return 'Câu $n chưa có nội dung.';
+      final opts = q.options.where((o) => o.text.trim().isNotEmpty).toList();
+      if (opts.length < 2) return 'Câu $n cần ít nhất 2 đáp án.';
+      if (q.options.where((o) => o.correct).length != 1) {
+        return 'Câu $n cần đúng 1 đáp án đúng.';
+      }
+      final correct = q.options.firstWhere((o) => o.correct);
+      if (correct.text.trim().isEmpty) {
+        return 'Câu $n: đáp án đúng không được để trống.';
+      }
+    }
+    return null;
+  }
+
   Future<void> _publish() async {
-    if (_publishing || _questions.isEmpty) return;
+    if (_publishing) return;
+    final err = _validate();
+    if (err != null) {
+      setState(() => _error = err);
+      return;
+    }
     setState(() {
       _publishing = true;
       _error = null;
     });
     try {
+      final payload = _questions.map((q) {
+        return GeneratedQuestionDto(
+          questionText: q.text.trim(),
+          questionType: 'MultipleChoice',
+          options: q.options
+              .where((o) => o.text.trim().isNotEmpty)
+              .map(
+                (o) => GeneratedOptionDto(
+                  optionText: o.text.trim(),
+                  isCorrect: o.correct,
+                ),
+              )
+              .toList(),
+        );
+      }).toList();
+
       final quiz = await QuizGenerationService.instance.saveGeneratedQuiz(
         documentId: widget.args.documentId,
         quizTitle: widget.args.quizTitle,
-        questions: _questions,
+        questions: payload,
       );
       _publishedQuizId = quiz.id;
-      // Quiz mới đã Teacher_Approved — refresh để thư viện hiện ngay.
       ref.invalidate(documentQuestionsProvider(widget.args.documentId));
       await ref.read(quizzesProvider.notifier).refresh();
       if (!mounted) return;
@@ -68,6 +147,22 @@ class _QuizPreviewPageState extends ConsumerState<QuizPreviewPage> {
         _error = e.toString().replaceFirst('Exception: ', '');
       });
     }
+  }
+
+  void _addQuestion() {
+    setState(() {
+      _questions.add(
+        _EditableQuestion(
+          id: _nextId++,
+          text: '',
+          options: [
+            _EditableOption(id: _nextId++, text: '', correct: true),
+            _EditableOption(id: _nextId++, text: '', correct: false),
+          ],
+        ),
+      );
+      _error = null;
+    });
   }
 
   Future<void> _confirmBack() async {
@@ -118,6 +213,8 @@ class _QuizPreviewPageState extends ConsumerState<QuizPreviewPage> {
                           _questions.length,
                           (i) => _questionCard(t, i),
                         ),
+                        const SizedBox(height: 4),
+                        _addQuestionBtn(t),
                       ],
                     ),
                   ),
@@ -130,9 +227,8 @@ class _QuizPreviewPageState extends ConsumerState<QuizPreviewPage> {
 
   Widget _statsRow(AppTokens t) {
     final n = _questions.length;
-    final minutes = (n * 30 / 60).ceil();
     return Text(
-      '$n câu hỏi  ·  $n điểm  ·  ~$minutes phút',
+      '$n câu hỏi  ·  chạm để sửa nội dung',
       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: t.ink),
     );
   }
@@ -150,12 +246,12 @@ class _QuizPreviewPageState extends ConsumerState<QuizPreviewPage> {
               children: [
                 Expanded(
                   child: Text(
-                    '${'${index + 1}'.padLeft(2, '0')}  TRẮC NGHIỆM · 30 giây · 1 điểm',
+                    'CÂU ${index + 1}',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.4,
-                      color: t.inkMuted,
+                      color: t.primary,
                     ),
                   ),
                 ),
@@ -171,45 +267,165 @@ class _QuizPreviewPageState extends ConsumerState<QuizPreviewPage> {
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              q.questionText,
+            // Nội dung câu hỏi — sửa được
+            TextFormField(
+              key: ValueKey('q${q.id}'),
+              initialValue: q.text,
+              onChanged: (v) => q.text = v,
+              minLines: 1,
+              maxLines: 4,
               style: TextStyle(
                 fontSize: 14.5,
                 fontWeight: FontWeight.w800,
                 color: t.ink,
                 height: 1.4,
               ),
-            ),
-            const SizedBox(height: 10),
-            ...q.options.map(
-              (o) => Padding(
-                padding: const EdgeInsets.only(bottom: 7),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      o.isCorrect
-                          ? Icons.check_circle_rounded
-                          : Icons.radio_button_unchecked,
-                      size: 18,
-                      color: o.isCorrect ? t.ok : t.inkMuted,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        o.optionText,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: o.isCorrect
-                              ? FontWeight.w700
-                              : FontWeight.w600,
-                          color: o.isCorrect ? t.ink : t.ink2,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Nhập nội dung câu hỏi…',
+                filled: true,
+                fillColor: t.surface2,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
                 ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: t.line),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: t.line),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...List.generate(
+              q.options.length,
+              (oi) => _optionRow(t, q, oi),
+            ),
+            const SizedBox(height: 4),
+            if (q.options.length < 6)
+              TextButton.icon(
+                onPressed: () => setState(() {
+                  q.options.add(
+                    _EditableOption(id: _nextId++, text: '', correct: false),
+                  );
+                }),
+                icon: Icon(Icons.add, size: 18, color: t.primary),
+                label: Text(
+                  'Thêm đáp án',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: t.primary,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  minimumSize: const Size(0, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _optionRow(AppTokens t, _EditableQuestion q, int oi) {
+    final o = q.options[oi];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          // Chọn đáp án đúng (radio — chỉ 1 đúng)
+          GestureDetector(
+            onTap: () => setState(() {
+              for (final x in q.options) {
+                x.correct = false;
+              }
+              o.correct = true;
+            }),
+            child: Icon(
+              o.correct
+                  ? Icons.check_circle_rounded
+                  : Icons.radio_button_unchecked,
+              size: 22,
+              color: o.correct ? t.ok : t.inkMuted,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextFormField(
+              key: ValueKey('o${o.id}'),
+              initialValue: o.text,
+              onChanged: (v) => o.text = v,
+              minLines: 1,
+              maxLines: 3,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: o.correct ? FontWeight.w700 : FontWeight.w600,
+                color: o.correct ? t.ink : t.ink2,
+                height: 1.4,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Đáp án…',
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: t.line),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: t.line),
+                ),
+              ),
+            ),
+          ),
+          if (q.options.length > 2)
+            GestureDetector(
+              onTap: () => setState(() {
+                final wasCorrect = o.correct;
+                q.options.removeAt(oi);
+                if (wasCorrect && !q.options.any((x) => x.correct)) {
+                  q.options.first.correct = true;
+                }
+              }),
+              child: Padding(
+                padding: const EdgeInsets.only(left: 6),
+                child: Icon(Icons.close, size: 18, color: t.inkMuted),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _addQuestionBtn(AppTokens t) {
+    return GestureDetector(
+      onTap: _addQuestion,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: t.primarySoft,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_circle_outline, size: 20, color: t.primary),
+            const SizedBox(width: 8),
+            Text(
+              'Thêm câu hỏi',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: t.primary,
               ),
             ),
           ],
@@ -365,8 +581,6 @@ class _QuizPreviewPageState extends ConsumerState<QuizPreviewPage> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton.icon(
-                  // Chơi ĐÚNG quiz vừa xuất bản (giống web targetQuizId) —
-                  // không đi qua documentId để khỏi dính quiz cũ của doc.
                   onPressed: () => context.go(
                     _publishedQuizId != null
                         ? '/student/quiz?quizId=$_publishedQuizId'

@@ -6,6 +6,8 @@ import '../../shared/widgets/themed_card.dart';
 import '../data/admin_models.dart';
 import '../providers/admin_providers.dart';
 import '../utils/admin_format.dart';
+import '../widgets/admin_ui.dart';
+import 'admin_user_detail_screen.dart';
 
 class AdminAccountsTab extends ConsumerStatefulWidget {
   const AdminAccountsTab({super.key});
@@ -26,12 +28,11 @@ class _AdminAccountsTabState extends ConsumerState<AdminAccountsTab> {
   @override
   Widget build(BuildContext context) {
     final t = ref.watch(themeProvider);
-    final async = ref.watch(adminAccountsProvider);
+    final async = ref.watch(adminUsersProvider);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
       children: [
-        // Search
         Container(
           decoration: BoxDecoration(
             color: t.surface,
@@ -55,6 +56,22 @@ class _AdminAccountsTabState extends ConsumerState<AdminAccountsTab> {
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        AdminChips(
+          t: t,
+          labels: const ['Mọi vai trò', 'Giáo viên', 'Học sinh', 'Phụ huynh', 'Admin'],
+          values: const [null, 'Teacher', 'Student', 'Parent', 'Admin'],
+          selected: ref.watch(adminUserRoleProvider),
+          onSelect: (v) => ref.read(adminUserRoleProvider.notifier).state = v,
+        ),
+        const SizedBox(height: 8),
+        AdminChips(
+          t: t,
+          labels: const ['Mọi gói', 'Freemium', 'Premium', 'Hết hạn'],
+          values: const [null, 'Freemium', 'Premium', 'Expired'],
+          selected: ref.watch(adminUserSubProvider),
+          onSelect: (v) => ref.read(adminUserSubProvider.notifier).state = v,
+        ),
         const SizedBox(height: 14),
         async.when(
           loading: () => const Padding(
@@ -74,7 +91,7 @@ class _AdminAccountsTabState extends ConsumerState<AdminAccountsTab> {
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton(
-                  onPressed: () => ref.invalidate(adminAccountsProvider),
+                  onPressed: () => ref.invalidate(adminUsersProvider),
                   child: const Text('Thử lại'),
                 ),
               ],
@@ -89,24 +106,27 @@ class _AdminAccountsTabState extends ConsumerState<AdminAccountsTab> {
 
 class _Body extends StatelessWidget {
   final AppTokens t;
-  final AdminAccounts d;
+  final AdminUsers d;
   const _Body({required this.t, required this.d});
 
   @override
   Widget build(BuildContext context) {
+    final premiumInPage = d.items
+        .where((u) => u.subscriptionStatus == 'Premium')
+        .length;
     return Column(
       children: [
         Row(
           children: [
             Expanded(
-              child: _summary(t, 'Tổng tài khoản', vnd(d.totalAccounts), t.ink),
+              child: _summary(t, 'Tổng tài khoản', vnd(d.total), t.ink),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _summary(
                 t,
-                'Đang trả phí',
-                vnd(d.payingAccounts),
+                'Premium (trang này)',
+                vnd(premiumInPage),
                 t.accent,
               ),
             ),
@@ -116,7 +136,7 @@ class _Body extends StatelessWidget {
         Align(
           alignment: Alignment.centerLeft,
           child: Text(
-            'Theo mức sử dụng (${d.total})',
+            'Danh sách (${d.items.length}/${d.total})',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w800,
@@ -134,7 +154,7 @@ class _Body extends StatelessWidget {
             ),
           )
         else
-          ...d.items.map((a) => _AccountCard(t: t, a: a)),
+          ...d.items.map((u) => _UserCard(t: t, u: u)),
       ],
     );
   }
@@ -167,32 +187,43 @@ class _Body extends StatelessWidget {
       );
 }
 
-class _AccountCard extends StatelessWidget {
+class _UserCard extends StatelessWidget {
   final AppTokens t;
-  final AdminAccount a;
-  const _AccountCard({required this.t, required this.a});
+  final AdminUserItem u;
+  const _UserCard({required this.t, required this.u});
 
   @override
   Widget build(BuildContext context) {
-    final initials = a.name.trim().isEmpty
+    final initials = u.fullName.trim().isEmpty
         ? '?'
-        : a.name
+        : u.fullName
               .trim()
               .split(RegExp(r'\s+'))
               .map((e) => e[0])
               .take(2)
               .join()
               .toUpperCase();
-    final (statusLabel, statusColor) = switch (a.status) {
-      'on' => ('Hoạt động', t.ok),
-      'trial' => ('Dùng thử', t.accent),
-      _ => ('Ít dùng', t.inkMuted),
+    final (subLabel, subColor) = switch (u.subscriptionStatus) {
+      'Premium' => ('Premium', t.accent),
+      'Expired' => ('Hết hạn', t.danger),
+      _ => ('Freemium', t.inkMuted),
     };
-    final isPremium = a.plan.toLowerCase().contains('premium');
+    final roleLabel = switch (u.role) {
+      'Teacher' => 'Giáo viên',
+      'Student' => 'Học sinh',
+      'Parent' => 'Phụ huynh',
+      'Admin' => 'Admin',
+      _ => u.role,
+    };
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: ThemedCard(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => AdminUserDetailScreen(userId: u.id),
+          ),
+        ),
         padding: const EdgeInsets.all(13),
         child: Column(
           children: [
@@ -221,7 +252,7 @@ class _AccountCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        a.name,
+                        u.fullName.isEmpty ? 'Chưa đặt tên' : u.fullName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -231,7 +262,9 @@ class _AccountCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        a.type,
+                        u.email,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
@@ -247,15 +280,15 @@ class _AccountCard extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: isPremium ? t.accentSoft : t.surfaceSunken,
+                    color: subColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    a.plan,
+                    subLabel,
                     style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w800,
-                      color: isPremium ? t.accent : t.ink2,
+                      color: subColor,
                     ),
                   ),
                 ),
@@ -267,32 +300,13 @@ class _AccountCard extends StatelessWidget {
             ),
             Row(
               children: [
-                _stat(
-                  t,
-                  Icons.auto_awesome,
-                  compactNum(a.questions),
-                  'câu hỏi',
-                ),
-                const SizedBox(width: 18),
-                _stat(t, Icons.mic, '${a.minutes}', 'phút'),
-                const Spacer(),
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  statusLabel,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: statusColor,
-                  ),
-                ),
+                _tag(t, roleLabel),
+                const SizedBox(width: 14),
+                _stat(t, Icons.description_outlined, u.documentCount, 'TL'),
+                const SizedBox(width: 12),
+                _stat(t, Icons.quiz_outlined, u.quizCount, 'Quiz'),
+                const SizedBox(width: 12),
+                _stat(t, Icons.layers_outlined, u.flashcardCount, 'Thẻ'),
               ],
             ),
           ],
@@ -301,20 +315,36 @@ class _AccountCard extends StatelessWidget {
     );
   }
 
-  Widget _stat(AppTokens t, IconData icon, String value, String label) => Row(
+  Widget _tag(AppTokens t, String label) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: t.surfaceSunken,
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(
+        fontSize: 10.5,
+        fontWeight: FontWeight.w700,
+        color: t.ink2,
+      ),
+    ),
+  );
+
+  Widget _stat(AppTokens t, IconData icon, int value, String label) => Row(
     children: [
       Icon(icon, size: 15, color: t.inkMuted),
-      const SizedBox(width: 5),
+      const SizedBox(width: 4),
       Text(
-        value,
+        '$value',
         style: TextStyle(
           fontSize: 12.5,
           fontWeight: FontWeight.w800,
           color: t.ink,
         ),
       ),
-      const SizedBox(width: 3),
-      Text(label, style: TextStyle(fontSize: 11, color: t.inkMuted)),
+      const SizedBox(width: 2),
+      Text(label, style: TextStyle(fontSize: 10.5, color: t.inkMuted)),
     ],
   );
 }
