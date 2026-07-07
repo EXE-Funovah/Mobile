@@ -13,7 +13,7 @@ void main() {
       expect(result, 'https://ai.mascoteach.com');
     });
 
-    test('mặc định dùng AI DEV khi không có override (mọi mode)', () {
+    test('mặc định dùng AI PROD khi không có override (mọi mode)', () {
       for (final isDebug in [true, false]) {
         for (final isWeb in [true, false]) {
           final result = resolveAiBaseUrl(
@@ -21,7 +21,7 @@ void main() {
             isDebugMode: isDebug,
             isWebRuntime: isWeb,
           );
-          expect(result, 'https://ai-dev.mascoteach.com');
+          expect(result, 'https://ai.mascoteach.com');
         }
       }
     });

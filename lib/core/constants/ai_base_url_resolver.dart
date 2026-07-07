@@ -1,9 +1,10 @@
 /// AI service đi cặp với backend:
-/// - Backend dev (mặc định): https://api-dev.mascoteach.com → AI dev: https://ai-dev.mascoteach.com
-/// - Backend prod:           https://api.mascoteach.com     → AI prod: https://ai.mascoteach.com
+/// - Backend prod (mặc định): https://api.mascoteach.com     → AI prod: https://ai.mascoteach.com
+/// - Backend dev:             https://api-dev.mascoteach.com → AI dev: https://ai-dev.mascoteach.com
 ///
-/// Nhánh `dev` mặc định AI DEV (đi cặp api-dev). Lên prod thì override:
-///   flutter build apk --release --dart-define=AI_BASE_URL=https://ai.mascoteach.com
+/// Nhánh `main` mặc định AI PROD (đi cặp api prod) cho build release.
+/// Test dev / local thì override không cần sửa code:
+///   flutter run --dart-define=AI_BASE_URL=https://ai-dev.mascoteach.com
 ///   flutter run --dart-define=AI_BASE_URL=http://10.0.2.2:5001
 String resolveAiBaseUrl({
   required String overrideBaseUrl,
@@ -15,5 +16,5 @@ String resolveAiBaseUrl({
     return normalizedOverride;
   }
 
-  return 'https://ai-dev.mascoteach.com';
+  return 'https://ai.mascoteach.com';
 }
