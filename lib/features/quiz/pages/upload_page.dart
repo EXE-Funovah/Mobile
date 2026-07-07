@@ -589,7 +589,7 @@ class _UploadPageState extends ConsumerState<UploadPage> {
               ),
               child: Row(
                 children: [
-                  Image.asset('assets/images/mascot-head.png', width: 50),
+                  Image.asset('assets/images/live-mascot-head.png', width: 50),
                   const SizedBox(width: 13),
                   Expanded(
                     child: Text.rich(
@@ -742,7 +742,7 @@ class _UploadPageState extends ConsumerState<UploadPage> {
                     ),
                   ),
                 ),
-                Image.asset('assets/images/main-mascot-full.png', width: 132)
+                Image.asset('assets/images/live-mascot-speaking-head.png', width: 132)
                     .animate(onPlay: (c) => c.repeat(reverse: true))
                     .moveY(duration: 2400.ms, begin: 0, end: -8),
               ],
@@ -893,3 +893,4 @@ class _DashedBorderPainter extends CustomPainter {
   @override
   bool shouldRepaint(_) => false;
 }
+

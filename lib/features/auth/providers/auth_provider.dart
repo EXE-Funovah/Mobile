@@ -47,24 +47,87 @@ class AuthState {
 }
 
 class AuthController extends StateNotifier<AuthState> {
-  AuthController() : super(const AuthState()) {
+  AuthController({
+    bool bootstrapOnInit = true,
+    Future<AuthResult> Function({
+      required String email,
+      required String password,
+    })?
+    loginRequest,
+    Future<void> Function({
+      required String fullName,
+      required String email,
+      required String password,
+      required String role,
+    })?
+    registerRequest,
+    Future<AuthResult> Function({required String idToken})? googleLoginRequest,
+    Future<void> Function({required String email})? resendVerificationRequest,
+    Future<String?> Function()? tokenReader,
+    Future<String?> Function()? displayNameReader,
+    Future<String?> Function()? roleReader,
+    Future<void> Function(String token)? tokenWriter,
+    Future<void> Function(String name)? displayNameWriter,
+    Future<void> Function(String role)? roleWriter,
+    Future<void> Function()? clearStorage,
+  }) : _loginRequest = loginRequest ?? AuthApi.instance.login,
+       _registerRequest = registerRequest ?? AuthApi.instance.register,
+       _googleLoginRequest = googleLoginRequest ?? AuthApi.instance.googleLogin,
+       _resendVerificationRequest =
+           resendVerificationRequest ?? AuthApi.instance.resendVerification,
+       _tokenReader = tokenReader ?? TokenStorage.instance.getToken,
+       _displayNameReader =
+           displayNameReader ?? TokenStorage.instance.getDisplayName,
+       _roleReader = roleReader ?? TokenStorage.instance.getRole,
+       _tokenWriter = tokenWriter ?? TokenStorage.instance.setToken,
+       _displayNameWriter =
+           displayNameWriter ?? TokenStorage.instance.setDisplayName,
+       _roleWriter = roleWriter ?? TokenStorage.instance.setRole,
+       _clearStorage = clearStorage ?? TokenStorage.instance.clear,
+       super(const AuthState()) {
     // DioClient báo về khi token bị 401/hết hạn → force logout để router
     // đá về /login (web làm tương tự: clearAuth → redirect /signin).
     DioClient.onSessionExpired = sessionExpired;
-    _bootstrap();
+    if (bootstrapOnInit) {
+      _bootstrap();
+    }
   }
 
+  final Future<AuthResult> Function({
+    required String email,
+    required String password,
+  })
+  _loginRequest;
+  final Future<void> Function({
+    required String fullName,
+    required String email,
+    required String password,
+    required String role,
+  })
+  _registerRequest;
+  final Future<AuthResult> Function({required String idToken})
+  _googleLoginRequest;
+  final Future<void> Function({required String email})
+  _resendVerificationRequest;
+  final Future<String?> Function() _tokenReader;
+  final Future<String?> Function() _displayNameReader;
+  final Future<String?> Function() _roleReader;
+  final Future<void> Function(String token) _tokenWriter;
+  final Future<void> Function(String name) _displayNameWriter;
+  final Future<void> Function(String role) _roleWriter;
+  final Future<void> Function() _clearStorage;
+
   Future<void> _bootstrap() async {
-    final token = await TokenStorage.instance.getToken();
-    final name = await TokenStorage.instance.getDisplayName();
-    final roleStr = await TokenStorage.instance.getRole();
+    final token = await _tokenReader();
+    final name = await _displayNameReader();
+    final roleStr = await _roleReader();
 
     if (token != null && token.isNotEmpty) {
       // JWT backend sống 60' và không có refresh endpoint — token cũ trong
       // storage gần như chắc chắn đã chết khi mở lại app. Khôi phục nó chỉ
       // tạo phiên "ma": UI tưởng đăng nhập nhưng mọi API đều 401.
       if (isJwtExpired(token)) {
-        await TokenStorage.instance.clear();
+        await _clearStorage();
         return;
       }
       state = state.copyWith(
@@ -89,22 +152,8 @@ class AuthController extends StateNotifier<AuthState> {
   Future<bool> login(String email, String password) async {
     state = state.copyWith(loading: true, clearError: true);
     try {
-      final res = await AuthApi.instance.login(
-        email: email,
-        password: password,
-      );
-      await TokenStorage.instance.setToken(res.token);
-      if (res.fullName != null) {
-        await TokenStorage.instance.setDisplayName(res.fullName!);
-      }
-      if (res.role != null) {
-        await TokenStorage.instance.setRole(res.role!);
-      }
-      state = AuthState(
-        token: res.token,
-        role: roleFromString(res.role),
-        displayName: res.fullName,
-      );
+      final res = await _loginRequest(email: email, password: password);
+      await _applyAuthResult(res);
       return true;
     } catch (e) {
       state = state.copyWith(loading: false, error: _msg(e));
@@ -120,14 +169,14 @@ class AuthController extends StateNotifier<AuthState> {
   }) async {
     state = state.copyWith(loading: true, clearError: true);
     try {
-      await AuthApi.instance.register(
+      await _registerRequest(
         fullName: fullName,
         email: email,
         password: password,
         role: role,
       );
-      // Sau khi đăng ký, tự login luôn
-      return await login(email, password);
+      state = state.copyWith(loading: false, clearError: true);
+      return true;
     } catch (e) {
       state = state.copyWith(loading: false, error: _msg(e));
       return false;
@@ -161,19 +210,20 @@ class AuthController extends StateNotifier<AuthState> {
         );
       }
 
-      final res = await AuthApi.instance.googleLogin(idToken: idToken);
-      await TokenStorage.instance.setToken(res.token);
-      if (res.fullName != null) {
-        await TokenStorage.instance.setDisplayName(res.fullName!);
-      }
-      if (res.role != null) {
-        await TokenStorage.instance.setRole(res.role!);
-      }
-      state = AuthState(
-        token: res.token,
-        role: roleFromString(res.role),
-        displayName: res.fullName,
-      );
+      final res = await _googleLoginRequest(idToken: idToken);
+      await _applyAuthResult(res);
+      return true;
+    } catch (e) {
+      state = state.copyWith(loading: false, error: _msg(e));
+      return false;
+    }
+  }
+
+  Future<bool> resendVerification(String email) async {
+    state = state.copyWith(loading: true, clearError: true);
+    try {
+      await _resendVerificationRequest(email: email);
+      state = state.copyWith(loading: false, clearError: true);
       return true;
     } catch (e) {
       state = state.copyWith(loading: false, error: _msg(e));
@@ -190,8 +240,23 @@ class AuthController extends StateNotifier<AuthState> {
     } catch (_) {
       // Bỏ qua lỗi nếu Google chưa init
     }
-    await TokenStorage.instance.clear();
+    await _clearStorage();
     state = const AuthState();
+  }
+
+  Future<void> _applyAuthResult(AuthResult res) async {
+    await _tokenWriter(res.token);
+    if (res.fullName != null) {
+      await _displayNameWriter(res.fullName!);
+    }
+    if (res.role != null) {
+      await _roleWriter(res.role!);
+    }
+    state = AuthState(
+      token: res.token,
+      role: roleFromString(res.role),
+      displayName: res.fullName,
+    );
   }
 
   String _msg(Object e) {

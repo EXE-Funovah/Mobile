@@ -8,11 +8,11 @@ class ApiConstants {
 
   /// Base URL của Backend.
   ///
-  /// Dev (mặc định, đang test): https://api-dev.mascoteach.com (swagger ở /swagger)
-  /// Production:                https://api.mascoteach.com
+  /// Dev (mặc định, nhánh dev): https://api-dev.mascoteach.com (swagger ở /swagger)
+  /// Production:                 https://api.mascoteach.com
   ///
-  /// Mặc định DEV để mọi build (debug/release, ai build cũng vậy) trỏ cùng 1
-  /// môi trường, tránh app nhảy dev↔prod. Lên prod thì override không cần sửa code:
+  /// Nhánh `dev` để mặc định DEV để test không cần override. Lên prod (nhánh main
+  /// hoặc build release) thì override:
   ///   flutter build apk --release --dart-define=API_BASE_URL=https://api.mascoteach.com
   // LƯU Ý: phải dùng httpS — server (openresty) trả 301 redirect nếu gọi
   // http thường, và Dio không tự follow redirect cho POST → login nhận về
@@ -45,6 +45,8 @@ class ApiConstants {
   static const String authLogin = '/api/Auth/login';
   static const String authRegister = '/api/Auth/register';
   static const String authGoogleLogin = '/api/Auth/google-login';
+  static const String authResendVerification =
+      '/api/Auth/resend-verification';
   static const String authForgotPassword = '/api/Auth/forgot-password';
   static const String authResetPassword = '/api/Auth/reset-password';
 

@@ -8,7 +8,6 @@ import '../../../core/theme/theme_provider.dart';
 import '../../shared/widgets/decorative_blob.dart';
 import '../../shared/widgets/google_button.dart';
 import '../../shared/widgets/gradient_button.dart';
-import '../../shared/widgets/mascot_avatar.dart';
 import '../../shared/widgets/or_divider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/session_refresh.dart';
@@ -65,7 +64,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       // Xoá state cũ để load lại tài liệu/quiz/stats của user vừa login
       resetUserScopedProviders(ref);
     } else {
-      final err = ref.read(authProvider).error ?? 'Đăng nhập thất bại';
+      final err = _friendlyLoginError(
+        ref.read(authProvider).error ?? 'Đăng nhập thất bại',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(err),
@@ -99,6 +100,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       // nếu err null nghĩa là user cancel — không show gì
     }
     // Khi thành công router refreshListenable sẽ tự redirect
+  }
+
+  String _friendlyLoginError(String err) {
+    if (err.toLowerCase().contains('verify your email')) {
+      return 'Tài khoản của bạn đã được tạo nhưng chưa xác thực email. Vui lòng mở email để xác thực trước khi đăng nhập.';
+    }
+    return err;
   }
 
   @override
@@ -303,10 +311,20 @@ class _HeroHeader extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    MascotAvatar(
-                      size: 100,
-                      bgColor: Colors.white.withValues(alpha: 0.18),
-                      showGlow: true,
+                    Container(
+                      width: 100,
+                      height: 100,
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8CD5FD),
+                        shape: BoxShape.circle,
+                        boxShadow: AppShadows.glow,
+                      ),
+                      padding: const EdgeInsets.all(10),
+                      child: Image.asset(
+                        'assets/images/login-mascot.png',
+                        fit: BoxFit.contain,
+                      ),
                     ).animate().scale(
                       duration: 600.ms,
                       curve: Curves.elasticOut,
