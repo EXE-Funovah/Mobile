@@ -6,9 +6,7 @@ class TokenStorage {
   static final TokenStorage instance = TokenStorage._();
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      resetOnError: true,
-    ),
+    aOptions: AndroidOptions(resetOnError: true),
   );
 
   Future<String?> getToken() => _storage.read(key: ApiConstants.tokenKey);

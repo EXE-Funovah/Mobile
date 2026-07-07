@@ -7,7 +7,9 @@ import '../../../core/theme/theme_tokens.dart';
 import '../../../data/models/document.dart';
 import '../../shared/widgets/flow_header.dart';
 import '../../shared/widgets/themed_card.dart';
+import '../../flashcard/pages/flashcard_preview_page.dart';
 import '../providers/documents_provider.dart';
+import 'generate_quiz_from_doc_page.dart';
 
 class DocDetailPage extends ConsumerWidget {
   final int? documentId;
@@ -277,6 +279,141 @@ class _DocDetailView extends ConsumerWidget {
                                   ),
                                   Text(
                                     'Xem trên trình duyệt qua đường dẫn S3',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: t.inkMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.chevron_right, color: t.inkMuted),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Tạo bộ câu hỏi mới từ tài liệu đã upload (dùng lại tài liệu)
+                  Material(
+                    color: t.surface,
+                    borderRadius: BorderRadius.circular(18),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: () => context.push(
+                        '/student/create-quiz',
+                        extra: GenerateQuizArgs(
+                          documentId: doc.id,
+                          docName: doc.displayName,
+                          fileUrl: doc.presignedUrl,
+                        ),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(15),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          border: t.cardBorder,
+                          boxShadow: t.cardShadow,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: t.primarySoft,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.auto_awesome,
+                                color: t.primary,
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 13),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Tạo bộ câu hỏi từ tài liệu',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: t.ink,
+                                    ),
+                                  ),
+                                  Text(
+                                    'AI soạn trắc nghiệm — xem lại rồi xuất bản',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: t.inkMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.chevron_right, color: t.inkMuted),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Tạo flashcard từ tài liệu (cùng bộ câu hỏi, học lật thẻ)
+                  Material(
+                    color: t.surface,
+                    borderRadius: BorderRadius.circular(18),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: () => context.push(
+                        '/student/flashcard-preview',
+                        extra: FlashcardPreviewArgs(
+                          documentId: doc.id,
+                          title: doc.displayName,
+                        ),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(15),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          border: t.cardBorder,
+                          boxShadow: t.cardShadow,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: t.tints[0],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.layers_rounded,
+                                color: t.tintInks[0],
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 13),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Tạo flashcard từ tài liệu',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: t.ink,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Lật thẻ ghi nhớ — học chủ động, không chấm điểm',
                                     style: TextStyle(
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.w600,

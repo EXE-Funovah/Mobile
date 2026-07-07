@@ -15,11 +15,15 @@ import '../../features/quiz/pages/quiz_play_page.dart';
 import '../../features/quiz/pages/quiz_preview_page.dart';
 import '../../features/quiz/pages/quiz_result_page.dart';
 import '../../features/quiz/pages/upload_page.dart';
+import '../../features/flashcard/pages/flashcard_preview_page.dart';
+import '../../features/flashcard/pages/flashcard_study_page.dart';
+import '../../features/quiz/pages/generate_quiz_from_doc_page.dart';
 import '../../features/student/pages/account_page.dart';
 import '../../features/student/pages/payment_page.dart';
 import '../../features/student/pages/pricing_page.dart';
 import '../../features/student/pages/settings_page.dart';
 import '../../features/student/pages/student_shell.dart';
+import '../../features/admin/pages/admin_shell.dart';
 
 final onboardedProvider = FutureProvider<bool>((_) async {
   final sp = await SharedPreferences.getInstance();
@@ -86,6 +90,32 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: '/student/create-quiz',
+        builder: (ctx, st) {
+          final args = st.extra;
+          if (args is! GenerateQuizArgs) return const StudentShell();
+          return GenerateQuizFromDocPage(args: args);
+        },
+      ),
+      GoRoute(
+        path: '/student/flashcard-preview',
+        builder: (ctx, st) {
+          final args = st.extra;
+          if (args is! FlashcardPreviewArgs) return const StudentShell();
+          return FlashcardPreviewPage(args: args);
+        },
+      ),
+      GoRoute(
+        path: '/student/flashcard-study',
+        builder: (ctx, st) {
+          final qidRaw = st.uri.queryParameters['quizId'];
+          final quizId = qidRaw == null ? null : int.tryParse(qidRaw);
+          final title = st.uri.queryParameters['title'] ?? 'Flashcard';
+          if (quizId == null) return const StudentShell();
+          return FlashcardStudyPage(quizId: quizId, title: title);
+        },
+      ),
+      GoRoute(
         path: '/student/doc-detail',
         builder: (ctx, st) {
           final raw = st.uri.queryParameters['id'];
@@ -125,6 +155,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) =>
             const Scaffold(body: Center(child: Text('Parent UI sắp ra mắt'))),
       ),
+      GoRoute(path: '/admin', builder: (_, _) => const AdminShell()),
     ],
   );
 });
@@ -157,6 +188,8 @@ class _SplashGate extends ConsumerWidget {
 
 String _homeFor(UserRole role) {
   switch (role) {
+    case UserRole.admin:
+      return '/admin';
     case UserRole.teacher:
       return '/teacher';
     case UserRole.parent:

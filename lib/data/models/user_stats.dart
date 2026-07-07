@@ -44,11 +44,11 @@ class UserStatsDto {
       longestStreak: _int(json['longestStreak'] ?? json['LongestStreak']) ?? 0,
       totalLearningMinutes:
           _int(json['totalLearningMinutes'] ?? json['TotalLearningMinutes']) ??
-              0,
+          0,
       totalCorrectAnswers:
-          _int(json['totalCorrectAnswers'] ?? json['TotalCorrectAnswers']) ??
-              0,
-      totalQuestionsAnswered: _int(
+          _int(json['totalCorrectAnswers'] ?? json['TotalCorrectAnswers']) ?? 0,
+      totalQuestionsAnswered:
+          _int(
             json['totalQuestionsAnswered'] ?? json['TotalQuestionsAnswered'],
           ) ??
           0,

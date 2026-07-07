@@ -39,6 +39,9 @@ class UploadPage extends ConsumerStatefulWidget {
   ConsumerState<UploadPage> createState() => _UploadPageState();
 }
 
+/// Giới hạn dung lượng file tải lên (khớp backend `Uploads:MaxFileSizeMB` = 25).
+const int kMaxUploadSizeMb = 25;
+
 class _UploadPageState extends ConsumerState<UploadPage> {
   _UploadStatus _status = _UploadStatus.idle;
   int _step = 0;
@@ -85,6 +88,19 @@ class _UploadPageState extends ConsumerState<UploadPage> {
     if (picked == null || picked.files.isEmpty) return;
     final file = picked.files.first;
     if (!mounted) return;
+
+    // Chặn sớm file quá lớn (backend cũng enforce, nhưng báo ngay cho đỡ phí upload).
+    if (file.size > kMaxUploadSizeMb * 1024 * 1024) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'File quá lớn (${(file.size / 1024 / 1024).toStringAsFixed(1)} MB). '
+            'Giới hạn $kMaxUploadSizeMb MB.',
+          ),
+        ),
+      );
+      return;
+    }
 
     // Sau khi chọn file → sang màn cấu hình (chọn độ khó, số câu) như web,
     // chưa upload/tạo gì cả.

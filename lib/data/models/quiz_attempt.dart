@@ -8,9 +8,9 @@ class QuizAnswerSubmit {
   const QuizAnswerSubmit({required this.questionId, required this.optionId});
 
   Map<String, dynamic> toJson() => {
-        'questionId': questionId,
-        'optionId': optionId,
-      };
+    'questionId': questionId,
+    'optionId': optionId,
+  };
 }
 
 /// Body cho `POST /api/QuizAttempt` (server-side scoring).
@@ -27,10 +27,10 @@ class QuizAttemptSubmitRequest {
   });
 
   Map<String, dynamic> toJson() => {
-        'quizId': quizId,
-        'durationSeconds': durationSeconds,
-        'answers': answers.map((a) => a.toJson()).toList(),
-      };
+    'quizId': quizId,
+    'durationSeconds': durationSeconds,
+    'answers': answers.map((a) => a.toJson()).toList(),
+  };
 }
 
 /// Response của attempt (kèm stats mới nhất nếu vừa submit).
