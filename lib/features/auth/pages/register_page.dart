@@ -62,6 +62,26 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     }
   }
 
+  Future<void> _googleSignIn() async {
+    final ok = await ref.read(authProvider.notifier).googleSignIn();
+    if (!mounted) return;
+    if (!ok) {
+      final err = ref.read(authProvider).error;
+      if (err != null && err.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(err),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final loading = ref.watch(authProvider).loading;
@@ -100,14 +120,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         if (ApiConstants.googleSignInEnabled) ...[
                           GoogleButton(
                             label: 'Đăng ký với Google',
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('🚧 Đăng ký Google sẽ sớm có'),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            },
+                            onPressed: _googleSignIn,
                           ),
                           const SizedBox(height: 16),
                           const OrDivider(label: 'HOẶC ĐIỀN THÔNG TIN'),

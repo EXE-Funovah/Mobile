@@ -6,6 +6,18 @@ import 'package:mascoteach_mobile/features/auth/pages/email_verification_pending
 import 'package:mascoteach_mobile/features/auth/pages/register_page.dart';
 import 'package:mascoteach_mobile/features/auth/providers/auth_provider.dart';
 
+class _FakeGoogleAuthController extends AuthController {
+  _FakeGoogleAuthController() : super(bootstrapOnInit: false);
+
+  var googleSignInCalled = false;
+
+  @override
+  Future<bool> googleSignIn() async {
+    googleSignInCalled = true;
+    return true;
+  }
+}
+
 GoRouter _router(AuthController controller) {
   return GoRouter(
     initialLocation: '/register',
@@ -81,5 +93,19 @@ void main() {
     await tester.pump();
 
     expect(resentEmail, 'student@example.com');
+  });
+
+  testWidgets('register Google button uses the real Google auth flow', (
+    tester,
+  ) async {
+    final controller = _FakeGoogleAuthController();
+
+    await tester.pumpWidget(_wrap(controller));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Đăng ký với Google'));
+    await tester.tap(find.text('Đăng ký với Google'));
+    await tester.pump();
+
+    expect(controller.googleSignInCalled, isTrue);
   });
 }
