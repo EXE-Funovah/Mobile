@@ -8,6 +8,7 @@ import '../../shared/widgets/google_button.dart';
 import '../../shared/widgets/gradient_button.dart';
 import '../../shared/widgets/or_divider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/session_refresh.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -65,7 +66,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   Future<void> _googleSignIn() async {
     final ok = await ref.read(authProvider.notifier).googleSignIn();
     if (!mounted) return;
-    if (!ok) {
+    if (ok) {
+      resetUserScopedProviders(ref);
+    } else {
       final err = ref.read(authProvider).error;
       if (err != null && err.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(

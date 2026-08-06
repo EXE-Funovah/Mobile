@@ -5,6 +5,7 @@ import '../../../core/theme/theme_provider.dart';
 import '../../../core/theme/theme_tokens.dart';
 import '../../../data/models/user.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../auth/providers/session_refresh.dart';
 import '../../auth/providers/user_profile_provider.dart';
 import '../../quiz/providers/user_stats_provider.dart';
 import '../../shared/widgets/themed_card.dart';
@@ -311,8 +312,8 @@ class StudentProfileTab extends ConsumerWidget {
                 t,
                 Icons.notifications_outlined,
                 'Thông báo',
-                'Sắp ra mắt',
-                () {},
+                'Nhắc học & cập nhật',
+                () => context.push('/student/settings'),
               ),
               Divider(color: t.line, height: 1),
               _tile(t, Icons.language, 'Ngôn ngữ', 'Tiếng Việt', () {}),
@@ -335,7 +336,7 @@ class StudentProfileTab extends ConsumerWidget {
           width: double.infinity,
           height: 50,
           child: OutlinedButton(
-            onPressed: () => ref.read(authProvider.notifier).logout(),
+            onPressed: () => logoutAndReset(ref),
             style: OutlinedButton.styleFrom(
               backgroundColor: Colors.transparent,
               side: BorderSide(color: t.line),

@@ -119,8 +119,14 @@ class AuthController extends StateNotifier<AuthState> {
 
   Future<void> _bootstrap() async {
     final token = await _tokenReader();
-    final name = await _displayNameReader();
-    final roleStr = await _roleReader();
+    final rawName = await _displayNameReader();
+    final rawRoleStr = await _roleReader();
+    final name = (rawName != null && rawName.trim().isNotEmpty)
+        ? rawName.trim()
+        : null;
+    final roleStr = (rawRoleStr != null && rawRoleStr.trim().isNotEmpty)
+        ? rawRoleStr.trim()
+        : null;
 
     if (token != null && token.isNotEmpty) {
       // JWT backend sống 60' và không có refresh endpoint — token cũ trong
@@ -245,17 +251,19 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> _applyAuthResult(AuthResult res) async {
+    final normalizedName = (res.fullName?.trim().isNotEmpty ?? false)
+        ? res.fullName!.trim()
+        : null;
+    final normalizedRole = (res.role?.trim().isNotEmpty ?? false)
+        ? res.role!.trim()
+        : null;
     await _tokenWriter(res.token);
-    if (res.fullName != null) {
-      await _displayNameWriter(res.fullName!);
-    }
-    if (res.role != null) {
-      await _roleWriter(res.role!);
-    }
+    await _displayNameWriter(normalizedName ?? '');
+    await _roleWriter(normalizedRole ?? '');
     state = AuthState(
       token: res.token,
-      role: roleFromString(res.role),
-      displayName: res.fullName,
+      role: roleFromString(normalizedRole),
+      displayName: normalizedName,
     );
   }
 

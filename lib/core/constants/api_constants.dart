@@ -83,6 +83,7 @@ class ApiConstants {
   // ============ Billing (PayOS) ============
   static const String billingCreatePaymentLink =
       '/api/Billing/create-payment-link';
+  static const String billingMyOrders = '/api/Billing/orders/me';
 
   // ============ Quiz ============
   static const String quizzes = '/api/Quiz';

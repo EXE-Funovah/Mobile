@@ -19,6 +19,7 @@ import '../../features/flashcard/pages/flashcard_preview_page.dart';
 import '../../features/flashcard/pages/flashcard_study_page.dart';
 import '../../features/quiz/pages/generate_quiz_from_doc_page.dart';
 import '../../features/student/pages/account_page.dart';
+import '../../features/student/pages/payment_history_page.dart';
 import '../../features/student/pages/payment_page.dart';
 import '../../features/student/pages/pricing_page.dart';
 import '../../features/student/pages/settings_page.dart';
@@ -67,6 +68,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/student', builder: (_, _) => const StudentShell()),
       GoRoute(path: '/student/account', builder: (_, _) => const AccountPage()),
+      GoRoute(
+        path: '/student/payment-history',
+        builder: (_, _) => const PaymentHistoryPage(),
+      ),
       GoRoute(
         path: '/student/settings',
         builder: (_, _) => const SettingsPage(),

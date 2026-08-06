@@ -8,9 +8,8 @@ import '../../../data/api/billing_api.dart';
 import '../../shared/widgets/themed_card.dart';
 import 'pricing_page.dart';
 
-/// Phương thức thanh toán. Hiện chỉ PayOS (chuyển khoản/QR ngân hàng) chạy thật;
-/// Thẻ + MoMo để preview ("Sắp có"), chưa tích hợp.
-enum PaymentMethod { payos, card, momo }
+/// Release-safe payment flow: chỉ giữ lại PayOS là phương thức chạy thật.
+enum PaymentMethod { payos }
 
 class PaymentPage extends ConsumerStatefulWidget {
   final String planId; // 'monthly' | 'yearly'
@@ -190,27 +189,6 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
                   title: 'Chuyển khoản / QR ngân hàng',
                   subtitle: 'Quét QR hoặc chuyển khoản qua PayOS',
                 ),
-                const SizedBox(height: 10),
-                _methodTile(
-                  t,
-                  PaymentMethod.card,
-                  icon: Icons.credit_card,
-                  iconColor: t.inkMuted,
-                  title: 'Thẻ tín dụng / ghi nợ',
-                  subtitle: 'Visa, Mastercard, JCB',
-                  comingSoon: true,
-                ),
-                const SizedBox(height: 10),
-                _methodTile(
-                  t,
-                  PaymentMethod.momo,
-                  icon: Icons.account_balance_wallet,
-                  iconColor: t.inkMuted,
-                  title: 'Ví MoMo',
-                  subtitle: 'Thanh toán qua app MoMo',
-                  comingSoon: true,
-                ),
-
                 const SizedBox(height: 18),
 
                 // ===== Ghi chú PayOS =====
@@ -306,14 +284,12 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
     required Color iconColor,
     required String title,
     required String subtitle,
-    bool comingSoon = false,
   }) {
     final selected = _method == method;
-    final enabled = !comingSoon;
     return Opacity(
-      opacity: enabled ? 1 : 0.6,
+      opacity: 1,
       child: GestureDetector(
-        onTap: enabled ? () => setState(() => _method = method) : null,
+        onTap: () => setState(() => _method = method),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.all(14),
@@ -321,10 +297,10 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
             color: t.surface,
             borderRadius: BorderRadius.circular(t.cardRadius),
             border: Border.all(
-              color: selected && enabled ? t.primary : t.line,
-              width: selected && enabled ? 2 : 1,
+              color: selected ? t.primary : t.line,
+              width: selected ? 2 : 1,
             ),
-            boxShadow: selected && enabled ? null : t.cardShadow,
+            boxShadow: selected ? null : t.cardShadow,
           ),
           child: Row(
             children: [
@@ -354,27 +330,6 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
                             ),
                           ),
                         ),
-                        if (comingSoon) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: t.surfaceSunken,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              'Sắp có',
-                              style: TextStyle(
-                                color: t.inkMuted,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                     const SizedBox(height: 2),
@@ -394,14 +349,14 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
                 width: 22,
                 height: 22,
                 decoration: BoxDecoration(
-                  color: selected && enabled ? t.primary : Colors.transparent,
+                  color: selected ? t.primary : Colors.transparent,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: selected && enabled ? t.primary : t.inkMuted,
+                    color: selected ? t.primary : t.inkMuted,
                     width: 2,
                   ),
                 ),
-                child: selected && enabled
+                child: selected
                     ? const Icon(Icons.check, color: Colors.white, size: 14)
                     : null,
               ),

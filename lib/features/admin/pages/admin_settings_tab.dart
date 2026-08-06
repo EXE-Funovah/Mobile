@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../core/theme/theme_tokens.dart';
-import '../../shared/widgets/themed_card.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../auth/providers/session_refresh.dart';
+import '../../shared/widgets/themed_card.dart';
 
 class AdminSettingsTab extends ConsumerWidget {
   const AdminSettingsTab({super.key});
@@ -80,24 +81,18 @@ class AdminSettingsTab extends ConsumerWidget {
             t,
             Icons.admin_panel_settings_outlined,
             'Phân quyền & vai trò',
-            'Sắp có',
+            'Theo tài khoản hiện tại',
           ),
           _row(t, Icons.translate, 'Ngôn ngữ', 'Tiếng Việt'),
         ]),
         const SizedBox(height: 14),
         _group(t, 'Dữ liệu', [
-          _row(
-            t,
-            Icons.file_download_outlined,
-            'Xuất báo cáo',
-            'CSV · PDF (sắp có)',
-          ),
           _row(t, Icons.payments_outlined, 'Cổng thanh toán', 'PayOS'),
         ]),
         const SizedBox(height: 14),
         _group(t, 'Tài khoản', [
           InkWell(
-            onTap: () => ref.read(authProvider.notifier).logout(),
+            onTap: () => logoutAndReset(ref),
             borderRadius: BorderRadius.circular(12),
             child: _rowContent(
               t,

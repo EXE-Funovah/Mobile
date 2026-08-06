@@ -17,6 +17,7 @@ class SettingsPage extends ConsumerStatefulWidget {
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   String _version = '—';
+  String _packageName = '';
 
   @override
   void initState() {
@@ -28,7 +29,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     try {
       final info = await PackageInfo.fromPlatform();
       if (mounted) {
-        setState(() => _version = 'v${info.version}+${info.buildNumber}');
+        setState(() {
+          _version = 'v${info.version}+${info.buildNumber}';
+          _packageName = info.packageName;
+        });
       }
     } catch (_) {}
   }
@@ -70,9 +74,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       ref.read(settingsProvider.notifier).setDailyGoal(v),
                 ),
                 _Divider(t),
-                _futureTile(Icons.alarm, 'Nhắc nhở học mỗi ngày'),
-                _Divider(t),
-                _futureTile(Icons.pause_circle_outline, 'Tự dừng khi rời màn'),
+                _SwitchTile(
+                  icon: Icons.alarm,
+                  label: 'Nhắc nhở học mỗi ngày',
+                  value: s.dailyReminderEnabled,
+                  onChanged: (v) =>
+                      ref.read(settingsProvider.notifier).setDailyReminder(v),
+                ),
               ],
             ),
           ),
@@ -98,8 +106,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   onChanged: (v) =>
                       ref.read(settingsProvider.notifier).setHaptic(v),
                 ),
-                _Divider(t),
-                _futureTile(Icons.record_voice_over, 'Giọng đọc Sumadi'),
               ],
             ),
           ),
@@ -110,14 +116,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ThemedCard(
             child: Column(
               children: [
-                _futureTile(Icons.notifications_outlined, 'Thông báo đẩy'),
-                _Divider(t),
-                _futureTile(
-                  Icons.local_fire_department,
-                  'Cảnh báo streak sắp đứt',
+                _SwitchTile(
+                  icon: Icons.notifications_outlined,
+                  label: 'Thông báo đẩy',
+                  value: s.pushNotificationsEnabled,
+                  onChanged: (v) => ref
+                      .read(settingsProvider.notifier)
+                      .setPushNotifications(v),
                 ),
                 _Divider(t),
-                _futureTile(Icons.mail_outline, 'Email nhắc học'),
+                _SwitchTile(
+                  icon: Icons.mail_outline,
+                  label: 'Email nhắc học',
+                  value: s.emailReminderEnabled,
+                  onChanged: (v) =>
+                      ref.read(settingsProvider.notifier).setEmailReminder(v),
+                ),
               ],
             ),
           ),
@@ -133,8 +147,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   label: 'Xóa bộ nhớ đệm',
                   onTap: () => _confirmClearCache(context),
                 ),
-                _Divider(t),
-                _futureTile(Icons.wifi, 'Chỉ tải khi có WiFi'),
               ],
             ),
           ),
@@ -152,8 +164,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   onChanged: (v) =>
                       ref.read(settingsProvider.notifier).setAnalytics(v),
                 ),
-                _Divider(t),
-                _futureTile(Icons.download_outlined, 'Xuất dữ liệu học tập'),
               ],
             ),
           ),
@@ -206,7 +216,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   ),
                 ),
                 _Divider(t),
-                _futureTile(Icons.system_update_alt, 'Kiểm tra cập nhật'),
+                _SettingTile(
+                  icon: Icons.system_update_alt,
+                  label: 'Kiểm tra cập nhật',
+                  onTap: () => _showUpdateDialog(context),
+                ),
               ],
             ),
           ),
@@ -230,19 +244,47 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 
-  Widget _futureTile(IconData icon, String label) {
-    return _SettingTile(
-      icon: icon,
-      label: label,
-      value: 'Sắp ra mắt',
-      disabled: true,
-    );
-  }
-
   Future<void> _openUrl(String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _showUpdateDialog(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Kiểm tra cập nhật'),
+        content: Text(
+          'Phiên bản hiện tại: $_version\n\n'
+          'Bạn có thể mở trang ứng dụng trên Google Play để kiểm tra bản mới nhất.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Đóng'),
+          ),
+          FilledButton(
+            onPressed: _packageName.trim().isEmpty
+                ? null
+                : () async {
+                    Navigator.pop(ctx);
+                    await _openPlayStore();
+                  },
+            child: const Text('Mở CH Play'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openPlayStore() async {
+    final packageName = _packageName.trim();
+    if (packageName.isEmpty) return;
+    final webUrl = Uri.parse(
+      'https://play.google.com/store/apps/details?id=$packageName',
+    );
+    await launchUrl(webUrl, mode: LaunchMode.externalApplication);
   }
 
   void _confirmClearCache(BuildContext context) {
@@ -388,7 +430,6 @@ class _SettingTile extends ConsumerWidget {
   final String label;
   final String? value;
   final IconData? trailingIcon;
-  final bool disabled;
   final VoidCallback? onTap;
 
   const _SettingTile({
@@ -396,7 +437,6 @@ class _SettingTile extends ConsumerWidget {
     required this.label,
     this.value,
     this.trailingIcon = Icons.chevron_right,
-    this.disabled = false,
     this.onTap,
   });
 
@@ -404,7 +444,7 @@ class _SettingTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = ref.watch(themeProvider);
     return InkWell(
-      onTap: disabled ? null : onTap,
+      onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
@@ -413,15 +453,13 @@ class _SettingTile extends ConsumerWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: disabled
-                    ? t.surfaceSunken.withValues(alpha: 0.5)
-                    : t.surfaceSunken,
+                color: t.surfaceSunken,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 icon,
                 size: 19,
-                color: disabled ? t.inkMuted : t.ink2,
+                color: t.ink2,
               ),
             ),
             const SizedBox(width: 13),
@@ -431,7 +469,7 @@ class _SettingTile extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w600,
-                  color: disabled ? t.inkMuted : t.ink,
+                  color: t.ink,
                 ),
               ),
             ),
@@ -446,7 +484,7 @@ class _SettingTile extends ConsumerWidget {
               ),
               if (trailingIcon != null) const SizedBox(width: 4),
             ],
-            if (trailingIcon != null && !disabled)
+            if (trailingIcon != null)
               Icon(trailingIcon, color: t.inkMuted, size: 18),
           ],
         ),

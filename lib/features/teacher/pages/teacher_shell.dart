@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../auth/providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../auth/providers/session_refresh.dart';
 import '../../mascot_chat/pages/mascot_ai_page.dart';
 import '../../shared/widgets/decorative_blob.dart';
 import '../../shared/widgets/mascot_avatar.dart';
@@ -546,7 +547,7 @@ class _ProfileTab extends ConsumerWidget {
               _tile(
                 Icons.logout,
                 'Đăng xuất',
-                () => ref.read(authProvider.notifier).logout(),
+                () => logoutAndReset(ref),
                 danger: true,
               ),
             ],

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_provider.dart';
+import '../../../data/api/auth_api.dart';
 import '../../shared/widgets/decorative_blob.dart';
 import '../../shared/widgets/google_button.dart';
 import '../../shared/widgets/gradient_button.dart';
@@ -13,7 +14,9 @@ import '../providers/auth_provider.dart';
 import '../providers/session_refresh.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
-  const LoginPage({super.key});
+  final Future<void> Function({required String email})? forgotPasswordRequest;
+
+  const LoginPage({super.key, this.forgotPasswordRequest});
 
   @override
   ConsumerState<LoginPage> createState() => _LoginPageState();
@@ -83,7 +86,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Future<void> _googleSignIn() async {
     final ok = await ref.read(authProvider.notifier).googleSignIn();
     if (!mounted) return;
-    if (!ok) {
+    if (ok) {
+      resetUserScopedProviders(ref);
+    } else {
       final err = ref.read(authProvider).error;
       if (err != null && err.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -107,6 +112,91 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       return 'Tài khoản của bạn đã được tạo nhưng chưa xác thực email. Vui lòng mở email để xác thực trước khi đăng nhập.';
     }
     return err;
+  }
+
+  Future<void> _showForgotPasswordDialog() async {
+    final emailCtl = TextEditingController(text: _emailCtl.text.trim());
+    final formKey = GlobalKey<FormState>();
+    var submitting = false;
+
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) {
+          return StatefulBuilder(
+            builder: (ctx, setStateDialog) => AlertDialog(
+              title: const Text('Quên mật khẩu'),
+              content: Form(
+                key: formKey,
+                child: TextFormField(
+                  controller: emailCtl,
+                  autofocus: true,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    hintText: 'ten@example.com',
+                  ),
+                  validator: (v) {
+                    final value = v?.trim() ?? '';
+                    if (value.isEmpty) return 'Nhập email';
+                    if (!value.contains('@')) return 'Email không hợp lệ';
+                    return null;
+                  },
+                ),
+              ),
+              contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+              actions: [
+                TextButton(
+                  onPressed: submitting ? null : () => Navigator.pop(ctx),
+                  child: const Text('Hủy'),
+                ),
+                FilledButton(
+                  onPressed: submitting
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          setStateDialog(() => submitting = true);
+                          try {
+                            final request =
+                                widget.forgotPasswordRequest ??
+                                AuthApi.instance.forgotPassword;
+                            await request(email: emailCtl.text.trim());
+                            if (!mounted) return;
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Nếu email tồn tại, hướng dẫn đặt lại mật khẩu đã được gửi.',
+                                ),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          } catch (e) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  e.toString().replaceFirst('Exception: ', ''),
+                                ),
+                                behavior: SnackBarBehavior.floating,
+                                backgroundColor: AppColors.danger,
+                              ),
+                            );
+                            if (ctx.mounted) {
+                              setStateDialog(() => submitting = false);
+                            }
+                          }
+                        },
+                  child: Text(submitting ? 'Đang gửi...' : 'Gửi email'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } finally {
+      emailCtl.dispose();
+    }
   }
 
   @override
@@ -214,7 +304,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                   Align(
                                     alignment: Alignment.centerRight,
                                     child: TextButton(
-                                      onPressed: () {},
+                                      onPressed: _showForgotPasswordDialog,
                                       style: TextButton.styleFrom(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 0,

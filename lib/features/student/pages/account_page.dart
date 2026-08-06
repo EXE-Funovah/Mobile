@@ -8,7 +8,7 @@ import '../../../core/theme/theme_tokens.dart';
 import '../../../data/api/auth_api.dart';
 import '../../../data/api/document_api.dart';
 import '../../../data/api/user_api.dart';
-import '../../auth/providers/auth_provider.dart';
+import '../../auth/providers/session_refresh.dart';
 import '../../auth/providers/user_profile_provider.dart';
 import '../../quiz/providers/documents_provider.dart';
 import '../../shared/widgets/themed_card.dart';
@@ -141,20 +141,6 @@ class _AccountBody extends ConsumerWidget {
                 trailingIcon: null,
                 disabled: true,
               ),
-              _Divider(t),
-              _SettingTile(
-                icon: Icons.devices_outlined,
-                label: 'Đăng xuất khỏi thiết bị khác',
-                value: 'Sắp ra mắt',
-                disabled: true,
-              ),
-              _Divider(t),
-              _SettingTile(
-                icon: Icons.security,
-                label: 'Bật xác thực 2 bước (2FA)',
-                value: 'Sắp ra mắt',
-                disabled: true,
-              ),
             ],
           ),
         ),
@@ -240,8 +226,7 @@ class _AccountBody extends ConsumerWidget {
               _SettingTile(
                 icon: Icons.receipt_long,
                 label: 'Lịch sử thanh toán',
-                value: 'Sắp ra mắt',
-                disabled: true,
+                onTap: () => context.push('/student/payment-history'),
               ),
             ],
           ),
@@ -470,7 +455,7 @@ class _AccountBody extends ConsumerWidget {
             onPressed: () async {
               try {
                 await UserApi.instance.delete(userId);
-                await ref.read(authProvider.notifier).logout();
+                await logoutAndReset(ref);
                 if (ctx.mounted) Navigator.pop(ctx);
               } catch (e) {
                 if (ctx.mounted) {
